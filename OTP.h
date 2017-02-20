@@ -14,7 +14,7 @@ const double UCB_c = 0.8 ;
 const double r_d = 1.5 ;
 const double sigma_e = 1.5 ;
 const int simulateN = 100 ;
-const int alarm_time = 9 ;
+const int alarm_time = 3 ;
 
 // global flags
 bool stopflag = false ;
@@ -48,10 +48,11 @@ struct grade {
 
 	int sum1 ;
 	int sum2 ;
+
+	constexpr grade(): win(0), lose(0), draw(0), simulateCount(0), sum1(0), sum2(0) {}
 } ;
 
 struct node {
-	// basic members
 	int win ;
 	int lose ;
 	int draw ;
@@ -71,12 +72,26 @@ struct node {
 	double sv ;
 	double ml ;
 	double mr ;
+			
+	constexpr node(): 
+	win(0), lose(0), draw(0), pos(0), winrate(0), pot(0), 
+	B(), simulateCount(0),
+	childCount(0), child(NULL), next(0), 
+	sum1(0), sum2(0),
+	sv(0), ml(0), mr(0) {}
+
+	constexpr node(board B_): 
+	win(0), lose(0), draw(0), pos(0), winrate(0), pot(0), 
+	B(B_), simulateCount(0), 
+	childCount(0), child(NULL), next(0), 
+	sum1(0), sum2(0),
+	sv(0), ml(0), mr(0) {}
 } ;
 
-void destroyTree(struct node *root){
+void destroyTree(node *root){
 	if( root->childCount > 0 ){
-		struct node *cur = root->child ;
-		struct node *next = cur->next ;
+		node *cur = root->child ;
+		node *next = cur->next ;
 		destroyTree(cur) ;
 		for( int i = 1 ; i < root->childCount ; i++ ){
 			cur = next ;
@@ -189,32 +204,16 @@ class OTP{
 			return 64 ;
 
 		bool my_tile = B.get_my_tile() ;
-		struct node *root = new struct node ;
-		root->win = 0 ;
-		root->lose = 0 ;
-		root->draw = 0 ;
-		root->pos = 0 ;
-		root->winrate = 0 ;
-		root->pot = 0 ;
-		root->simulateCount = 0 ;
-		root->B = board(B.get_black(), B.get_white(), my_tile, B.get_pass()) ;
-		root->childCount = 0 ;
-		root->child = NULL ;
-		root->next = NULL ;
-		root->sum1 = 0 ;
-		root->sum2 = 0 ;
-		root->ml = 0 ;
-		root->mr = 0 ;
+		node *root = new node(B) ;
 
 		// Monte-Carlo
-		struct grade g ;
 		while(!stopflag){
-			g = root_simulate(root, my_tile, my_tile) ;
+			grade g = root_simulate(root, my_tile, my_tile) ;
 			root->simulateCount += g.simulateCount ;
 		}
 
-		struct node *maxN = root->child ;
-		struct node *tmpN = root->child->next ;
+		node *maxN = root->child ;
+		node *tmpN = root->child->next ;
 		for( int i = 1 ; i < root->childCount ; i++ ){
 			if( tmpN->winrate > maxN->winrate )
 				maxN = tmpN ;
@@ -226,14 +225,8 @@ class OTP{
 		return pos ;
 	}
 
-	struct grade root_simulate(struct node *root, bool my_tile, bool top_root_tile){
-		struct grade g ;
-		g.win = 0 ;
-		g.lose = 0 ;
-		g.draw = 0 ;
-		g.simulateCount = 0 ;
-		g.sum1 = 0 ;
-		g.sum2 = 0 ;
+	grade root_simulate(node *root, bool my_tile, bool top_root_tile){
+		grade g ;
 
 		if( root->B.is_game_over() ){
 			int score = root->B.get_score() ;
@@ -263,9 +256,9 @@ class OTP{
 		}
 		
 		// Selection 
-		struct node *tmpN ;
+		node *tmpN ;
 		if( root->childCount > 0 ){
-			struct node *maxN = root->child ;
+			node *maxN = root->child ;
 			tmpN = maxN->next ;
 			for( int i = 1 ; i < root->childCount ; i++ ){
 				if( tmpN->winrate + tmpN->pot > maxN->winrate + maxN->pot )
@@ -312,8 +305,8 @@ class OTP{
 				tmpN = tmpN->next ;
 			}
 
-			struct node *prev ;
-			struct node *cur = root->child ;
+			node *prev ;
+			node *cur = root->child ;
 			int oldChildCount = root->childCount ;
 			int oldsimulateCount = root->simulateCount ;
 			root->simulateCount = 0 ;
@@ -421,52 +414,38 @@ class OTP{
 			// Expansion
 			if( nodeCount == 0 ){
 				nodeCount = 1 ;
-				root->child = new struct node ;
+				root->child = new node(root->B) ;
 				root->childCount = nodeCount ;
 				root->child->pos = 0 ;
 			}
 			else {
-				root->child = new struct node ;
+				root->child = new node(root->B) ;
 				root->childCount = nodeCount ;
 				tmpN = root->child ;
 				for( int i = 1 ; i < nodeCount ; i++ ){
-					tmpN->next = new struct node ;
+					tmpN->next = new node(root->B) ;
 					tmpN = tmpN->next ;
 				}
 				root->child->pos = ML[0] ;
 			}
 
 			double pot = UCB_c*sqrt(log(simulateN*nodeCount)/simulateN) ;
-			root->child->win = 0 ;
-			root->child->lose = 0 ;
-			root->child->draw = 0 ;
-			root->child->winrate = 0 ;
 			root->child->pot = pot ;
 			root->child->simulateCount = simulateN ;
-			root->child->B = root->B ; ;
-			root->child->childCount = 0 ;
-			root->child->child = NULL ;
 			root->child->B.update(root->child->pos) ;
 
 			tmpN = root->child ;
 			for( int i = 1 ; i < nodeCount ; i++ ){
-				tmpN->next->win = 0 ;
-				tmpN->next->lose = 0 ;
-				tmpN->next->draw = 0 ;
-				tmpN->next->winrate = 0 ;
 				tmpN->next->pos = ML[i] ;
 				tmpN->next->pot = pot ;
 				tmpN->next->simulateCount = simulateN ;
-				tmpN->next->B = root->B ;
-				tmpN->next->childCount = 0 ;
-				tmpN->next->child = NULL ;
 				tmpN->next->B.update(tmpN->next->pos) ;
 				tmpN = tmpN->next ;
 			}
 			tmpN->next = NULL ;
 
 			// Simulations
-			struct grade tmpg ;
+			grade tmpg ;
 			double maxml = -1000000 ;
 			double maxmlsv = -1 ;
 			double mean ;
@@ -517,8 +496,8 @@ class OTP{
 			}
 
 			// Pruning
-			struct node *prev ;
-			struct node *cur = root->child ;
+			node *prev ;
+			node *cur = root->child ;
 			int i = 0 ;
 			if( my_tile == top_root_tile ){
 				do{
@@ -618,16 +597,10 @@ class OTP{
 		return g ;
 	}
 
-	struct grade leaf_simulate(board B, bool my_tile){
-		struct grade g ;
+	grade leaf_simulate(board B, bool my_tile){
+		grade g ;
 		unsigned long long ML[64], *MLED(ML) ;
 		int score ;
-
-		g.win = 0 ;
-		g.lose = 0 ;
-		g.draw = 0 ;
-		g.sum1 = 0 ;
-		g.sum2 = 0 ;
 
 		for( int t = 0 ; t < simulateN ; t++ ){
 			board tmpB = B ;
