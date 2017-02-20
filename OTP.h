@@ -10,15 +10,9 @@
 #include<cmath>
 
 // parameters
-#ifdef UCB
-const double UCB_c = 1.1 ;
-#elif UCT
-const double UCB_c = 0.8 ;
-#elif PP
 const double UCB_c = 0.8 ;
 const double r_d = 1.5 ;
 const double sigma_e = 1.5 ;
-#endif
 const int simulateN = 100 ;
 const int alarm_time = 9 ;
 
@@ -52,10 +46,8 @@ struct grade {
 	int draw ;
 	int simulateCount ;
 
-#ifdef PP
 	int sum1 ;
 	int sum2 ;
-#endif
 } ;
 
 struct node {
@@ -68,26 +60,19 @@ struct node {
 	double pot ;
 	board B ;
 
-#if defined(UCT) || defined(PP)
 	int simulateCount ;
-#endif
 
-#if defined(UCT) || defined(PP)
 	int childCount ;
 	struct node *child ;
 	struct node *next ;
-#endif
 
-#ifdef PP
 	int sum1 ;
 	int sum2 ;
 	double sv ;
 	double ml ;
 	double mr ;
-#endif
 } ;
 
-#if defined(UCT) || defined(PP)
 void destroyTree(struct node *root){
 	if( root->childCount > 0 ){
 		struct node *cur = root->child ;
@@ -102,7 +87,6 @@ void destroyTree(struct node *root){
 	delete root ;
 	return ;
 }
-#endif
 
 template<class RIT>RIT random_choice(RIT st,RIT ed){
 #ifdef _WIN32
@@ -151,19 +135,7 @@ class OTP{
 
 		stopflag = false ;
 
-#ifdef TA
-		int ML[64],*MLED(B.get_valid_move(ML)) ;
-		ans = MLED==ML?64:*random_choice(ML,MLED);
-#elif RANDOM
-		unsigned long long ML[64], *MLED(B.get_valid_move(ML)) ;
-		ans = MLED==ML?64:__builtin_ctzll(*random_choice(ML,MLED)) ;
-#elif UCB
-		ans = UCB_genmove() ;
-#elif UCT
-		ans = UCT_genmove() ;
-#elif PP
-		ans = PP_genmove() ;
-#endif
+		ans = genmove() ;
 
 		time.it_value.tv_sec = 0 ;
 		if( setitimer( ITIMER_REAL, &time, NULL) < 0 )
@@ -203,12 +175,6 @@ class OTP{
 		if( llp == llpED )
 			return p ;
 		else {
-			unsigned long long my_board ;
-			if( B.get_my_tile() )
-				my_board = B.get_white() ;
-			else 
-				my_board = B.get_black() ;
-
 			do{
 				--llpED ;
 				*p = __builtin_ctzll(*llpED) ;
@@ -218,282 +184,7 @@ class OTP{
 		}
 	}
 
-	// different methods for genmove
-#ifdef UCB
-	int UCB_genmove(){
-		unsigned long long ML[64], *MLED(B.get_valid_move(ML)) ;
-		int nodeCount = MLED - ML ;
-		if( nodeCount == 0 )
-			return 64 ;
-
-		// Initialize nodes
-		struct node n[nodeCount] ;
-		int simulateCount = simulateN*nodeCount ;
-		double pot = UCB_c*sqrt(log(simulateCount)/simulateN) ;
-		bool my_tile = B.get_my_tile() ;
-		n[0].win = 0 ;
-		n[0].lose = 0 ;
-		n[0].draw = 0 ;
-		n[0].pos = ML[0] ;
-		n[0].winrate = 0 ;
-		n[0].pot = pot ;
-		n[0].B = board(B.get_black(), B.get_white(), my_tile, B.get_pass()) ;
-		for( int i = 1 ; i < nodeCount ; i++ ){
-			n[i] = n[0] ;
-			n[i].pos = ML[i] ;
-			n[i].B.update(n[i].pos) ;
-		}
-		n[0].B.update(n[0].pos) ;
-
-		// Initial simulations
-		struct grade g ;
-		for( int i = 0 ; i < nodeCount ; i++ ){
-			g = leaf_simulate(n[i].B, my_tile) ;
-			n[i].win = g.win ;
-			n[i].lose = g.lose ;
-			n[i].draw = g.draw ;
-			n[i].winrate = double(g.win)/simulateN ;
-		}
-
-		// Monte-Carlo
-		int maxn = 0 ;
-		int Ni = 0 ;
-		while(!stopflag){
-			maxn = 0 ;
-			for( int i = 1 ; i < nodeCount ; i++ ){
-				if( n[i].winrate + n[i].pot > n[maxn].winrate + n[maxn].pot )
-					maxn = i ;
-			}
-			g = leaf_simulate(n[maxn].B, my_tile) ;
-			n[maxn].win += g.win ;
-			n[maxn].lose += g.lose ;
-			n[maxn].draw += g.draw ;
-
-			Ni = n[maxn].win + n[maxn].lose + n[maxn].draw ;
-			n[maxn].winrate = double(n[maxn].win)/Ni ;
-			n[maxn].pot *= sqrt((double)(Ni-simulateN)/Ni) ;
-
-			simulateCount += simulateN ;
-			pot = sqrt(log(simulateCount)/log(simulateCount-simulateN)) ;
-			for( int i = 0 ; i < nodeCount ; i++ )
-				n[i].pot *= pot ;
-		}
-
-		maxn = 0 ;
-		for( int i = 1 ; i < nodeCount ; i++ ){
-			if( n[i].winrate > n[maxn].winrate )
-				maxn = i ;
-		}
-
-		return __builtin_ctzll(n[maxn].pos) ;
-	}
-#endif
-
-#ifdef UCT
-	int UCT_genmove(){
-		if( no_valid_move() )
-			return 64 ;
-
-		bool my_tile = B.get_my_tile() ;
-		struct node *root = new struct node ;
-		root->win = 0 ;
-		root->lose = 0 ;
-		root->draw = 0 ;
-		root->pos = 0 ;
-		root->winrate = 0 ;
-		root->pot = 0 ;
-		root->simulateCount = 0 ;
-		root->B = board(B.get_black(), B.get_white(), my_tile, B.get_pass()) ;
-		root->childCount = 0 ;
-		root->child = NULL ;
-		root->next = NULL ;
-
-		// Monte-Carlo
-		struct grade g ;
-		while(!stopflag){
-			g = UCT_simulate(root, my_tile, my_tile) ;
-			root->simulateCount += g.simulateCount ;
-		}
-
-		struct node *maxN = root->child ;
-		struct node *tmpN = root->child->next ;
-		for( int i = 1 ; i < root->childCount ; i++ ){
-			if( tmpN->winrate > maxN->winrate )
-				maxN = tmpN ;
-			tmpN = tmpN->next ;
-
-		}
-
-		int pos = __builtin_ctzll(maxN->pos) ;
-		destroyTree(root) ;
-		return pos ;
-	}
-	
-	struct grade UCT_simulate(struct node *root, bool my_tile, bool top_root_tile){ // my_tile is the tile of root->child
-	// win, lose, draw, winrate, pot update in child level
-	// simulateCount, childCount, child, next update in root level
-	
-		struct grade g ;
-		g.win = 0 ;
-		g.lose = 0 ;
-		g.draw = 0 ;
-		g.simulateCount = 0 ;
-
-		// Game over: act like we have simulated N times
-		if( root->B.is_game_over() ){
-			int score = root->B.get_score() ;
-			if( top_root_tile ){
-				if( score > 0 )
-					g.lose = simulateN ;
-				else if( score < 0 )
-					g.win = simulateN ;
-				else
-					g.draw = simulateN ;
-			}
-			else {
-				if( score > 0 )
-					g.win = simulateN ;
-				else if( score < 0 )
-					g.lose = simulateN;
-				else
-					g.draw = simulateN ;
-			}
-			g.simulateCount = simulateN ;
-			root->simulateCount += simulateN ;
-			return g ;
-		}
-		
-		// Selection 
-		struct node *tmpN ;
-		if( root->childCount > 0 ){
-			struct node *maxN = root->child ;
-			tmpN = maxN->next ;
-			for( int i = 1 ; i < root->childCount ; i++ ){
-				if( tmpN->winrate + tmpN->pot > maxN->winrate + maxN->pot )
-					maxN = tmpN ;
-				tmpN = tmpN->next ;
-			}
-			g = UCT_simulate(maxN, !my_tile, top_root_tile) ;
-			
-			// Back propagation
-			if( my_tile == top_root_tile ){
-				maxN->win += g.win ;
-				maxN->lose += g.lose ;
-				maxN->draw += g.draw ;
-			}
-			else {
-				maxN->win += g.lose ;
-				maxN->lose += g.win ;
-				maxN->draw += g.draw ;
-			}
-
-			maxN->winrate = double(maxN->win)/maxN->simulateCount ;
-			maxN->pot *= sqrt((double)(maxN->simulateCount-g.simulateCount)/maxN->simulateCount) ;
-
-			double pot = sqrt(log(root->simulateCount + g.simulateCount)/log(root->simulateCount)) ;
-			tmpN = root->child ;
-			for( int i = 0 ; i < root->childCount ; i++ ){
-				tmpN->pot *= pot ;
-				tmpN = tmpN->next ;
-			}
-			root->simulateCount += g.simulateCount ;
-		}
-		else {
-			unsigned long long ML[64], *MLED(root->B.get_valid_move(ML)) ;
-			int nodeCount = MLED - ML ;
-
-			// Expansion
-			if( nodeCount == 0 ){
-				nodeCount = 1 ;
-				root->childCount = nodeCount ;
-				root->child = new struct node ;
-				root->child->pos = 0 ;
-			}
-			else {
-				root->childCount = nodeCount ;
-				root->child = new struct node ;
-				tmpN = root->child ;
-				for( int i = 1 ; i < nodeCount ; i++ ){
-					tmpN->next = new struct node ;
-					tmpN = tmpN->next ;
-				}
-				root->child->pos = ML[0] ;
-			}
-			tmpN = root->child ;
-
-			int simulateCount = simulateN*nodeCount ;
-			double pot = UCB_c*sqrt(log(simulateCount)/simulateN) ;
-			root->child->win = 0 ;
-			root->child->lose = 0 ;
-			root->child->draw = 0 ;
-			root->child->winrate = 0 ;
-			root->child->pot = pot ;
-			root->child->simulateCount = simulateN ;
-			root->child->B = root->B ;
-			root->child->childCount = 0 ;
-			root->child->child = NULL ;
-			root->child->B.update(root->child->pos) ;
-
-			tmpN = root->child ;
-			for( int i = 1 ; i < nodeCount ; i++ ){
-				tmpN->next->win = 0 ;
-				tmpN->next->lose = 0 ;
-				tmpN->next->draw = 0 ;
-				tmpN->next->winrate = 0 ;
-				tmpN->next->pos = ML[i] ;
-				tmpN->next->pot = pot ;
-				tmpN->next->simulateCount = simulateN ;
-				tmpN->next->B = root->B ;
-				tmpN->next->childCount = 0 ;
-				tmpN->next->child = NULL ;
-				tmpN->next->B.update(tmpN->next->pos) ;
-				tmpN = tmpN->next ;
-			}
-			tmpN->next = NULL ;
-
-			// Simulations
-			struct grade tmpg ;
-			tmpN = root->child ;
-			if( my_tile == top_root_tile ){
-				for( int i = 0 ; i < nodeCount ; i++ ){
-					tmpg = leaf_simulate(tmpN->B, top_root_tile) ;
-					tmpN->win = tmpg.win ;
-					tmpN->lose = tmpg.lose ;
-					tmpN->draw = tmpg.draw ;
-					tmpN->winrate = double(tmpN->win)/tmpN->simulateCount ;
-					tmpN = tmpN->next ;
-					
-					g.win += tmpg.win ;
-					g.lose += tmpg.lose ;
-					g.draw += tmpg.draw ;
-				}
-			}
-			else {
-				for( int i = 0 ; i < nodeCount ; i++ ){
-					tmpg = leaf_simulate(tmpN->B, top_root_tile) ;
-					tmpN->win = tmpg.lose ;
-					tmpN->lose = tmpg.win ;
-					tmpN->draw = tmpg.draw ;
-					tmpN->winrate = double(tmpN->win)/tmpN->simulateCount ;
-					tmpN = tmpN->next ;
-					
-					g.win += tmpg.win ;
-					g.lose += tmpg.lose ;
-					g.draw += tmpg.draw ;
-				}
-			}
-
-			g.simulateCount = simulateCount ;
-			root->simulateCount += simulateCount ;
-		}
-
-		// Back propagation
-		return g ;
-	}
-#endif
-
-#ifdef PP
-	int PP_genmove(){
+	int genmove(){
 		if( no_valid_move() )
 			return 64 ;
 
@@ -518,7 +209,7 @@ class OTP{
 		// Monte-Carlo
 		struct grade g ;
 		while(!stopflag){
-			g = PP_simulate(root, my_tile, my_tile) ;
+			g = root_simulate(root, my_tile, my_tile) ;
 			root->simulateCount += g.simulateCount ;
 		}
 
@@ -535,7 +226,7 @@ class OTP{
 		return pos ;
 	}
 
-	struct grade PP_simulate(struct node *root, bool my_tile, bool top_root_tile){
+	struct grade root_simulate(struct node *root, bool my_tile, bool top_root_tile){
 		struct grade g ;
 		g.win = 0 ;
 		g.lose = 0 ;
@@ -581,7 +272,7 @@ class OTP{
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
 			}
-			g = PP_simulate(maxN, !my_tile, top_root_tile) ;
+			g = root_simulate(maxN, !my_tile, top_root_tile) ;
 			
 			// Back propagation
 			if( my_tile == top_root_tile ){
@@ -782,7 +473,7 @@ class OTP{
 			tmpN = root->child ;
 			if( my_tile == top_root_tile ){
 				for( int i = 0 ; i < nodeCount ; i++ ){
-					tmpg = leaf_simulate_score(tmpN->B, top_root_tile) ;
+					tmpg = leaf_simulate(tmpN->B, top_root_tile) ;
 					tmpN->win = tmpg.win ;
 					tmpN->lose = tmpg.lose ;
 					tmpN->draw = tmpg.draw ;
@@ -804,7 +495,7 @@ class OTP{
 			}
 			else {
 				for( int i = 0 ; i < nodeCount ; i++ ){
-					tmpg = leaf_simulate_score(tmpN->B, top_root_tile) ;
+					tmpg = leaf_simulate(tmpN->B, top_root_tile) ;
 					tmpN->win = tmpg.lose ;
 					tmpN->lose = tmpg.win ;
 					tmpN->draw = tmpg.draw ;
@@ -926,52 +617,8 @@ class OTP{
 		// Back propagation
 		return g ;
 	}
-#endif
 
-#if defined(UCB) || defined(UCT)
 	struct grade leaf_simulate(board B, bool my_tile){
-		struct grade g ;
-		unsigned long long ML[64], *MLED(ML) ;
-		int score ;
-
-		g.win = 0 ;
-		g.lose = 0 ;
-		g.draw = 0 ;
-
-		for( int t = 0 ; t < simulateN ; t++ ){
-			board tmpB = B ;
-			while(!tmpB.is_game_over()){
-				MLED = tmpB.get_valid_move(ML) ;
-				if( ML == MLED )
-					tmpB.update(0) ; // pass
-				else 
-					tmpB.update(*random_choice(ML,MLED)) ;
-			}
-			score = tmpB.get_score() ;
-			if( my_tile ){
-				if( score > 0 )
-					++g.lose ;
-				else if( score < 0 )
-					++g.win ;
-				else
-					++g.draw ;
-			}
-			else {
-				if( score > 0 )
-					++g.win ;
-				else if( score < 0 )
-					++g.lose ;
-				else
-					++g.draw ;
-			}
-		}
-		g.simulateCount = simulateN ;
-		return g ;
-	}
-#endif
-
-#ifdef PP
-	struct grade leaf_simulate_score(board B, bool my_tile){
 		struct grade g ;
 		unsigned long long ML[64], *MLED(ML) ;
 		int score ;
@@ -1018,7 +665,6 @@ class OTP{
 		g.simulateCount = simulateN ;
 		return g ;
 	}
-#endif
 
 	bool no_valid_move(){
 		int ML[64], *MLED(B.get_valid_move(ML)) ;

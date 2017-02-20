@@ -20,7 +20,7 @@ class board{
 	// Construct board.
 	// my_tile = BLACK
 	// op_tile = WHITE
-	constexpr board(): my_tile(false), op_tile(true), pass(0), black(34628173824), white(68853694464) {}
+	constexpr board(): black(34628173824), white(68853694464), my_tile(false), op_tile(true), pass(0) {}
 
 	// Input: b = black board
 	// 	  w = white board
@@ -48,13 +48,11 @@ class board{
 		black = 0 ;
 		white = 0 ;
 		if(ed-st==66&&std::all_of(st,ed,isdigit)){
-			for(int i=0;i<8;i++){
-				for(int j=0;j<8;j++){
-					if( (*(st++)-'0')%3 == 1 ) // black
-						black |= (1ULL<<8*i+j) ;
-					else if( (*(st++)-'0')%3 == 2 ) // white
-						white |= (1ULL<<8*i+j) ;
-				}
+			for(int i=0;i<64;i++){
+				if( (*(st++)-'0')%3 == 1 ) // black
+					black |= (1ULL<<i) ;
+				else if( (*(st++)-'0')%3 == 2 ) // white
+					white |= (1ULL<<i) ;
 			}
 			my_tile = 2-(*(st++)-'0')%2 - 1;
 			op_tile = !my_tile ;
