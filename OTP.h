@@ -76,14 +76,14 @@ struct node {
 	constexpr node(): 
 	win(0), lose(0), draw(0), pos(0), winrate(0), pot(0), 
 	B(), simulateCount(0),
-	childCount(0), child(NULL), next(0), 
+	childCount(0), child(NULL), next(NULL), 
 	sum1(0), sum2(0),
 	sv(0), ml(0), mr(0) {}
 
 	constexpr node(board B_): 
 	win(0), lose(0), draw(0), pos(0), winrate(0), pot(0), 
 	B(B_), simulateCount(0), 
-	childCount(0), child(NULL), next(0), 
+	childCount(0), child(NULL), next(NULL), 
 	sum1(0), sum2(0),
 	sv(0), ml(0), mr(0) {}
 } ;
