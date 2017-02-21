@@ -244,6 +244,84 @@ class board{
 		op_tile = tmp_tile ;
 	}
 
+	bool is_valid_move_new(const int x, const int y){
+		static bool*** table = construct_valid_move_table() ;
+		
+		unsigned long long my_board, op_board ;
+		if( my_tile ){
+			my_board = white ;
+			op_board = black ;
+		}
+		else {
+			my_board = black ;
+			op_board = white ;
+		}
+
+		const unsigned long long row_mask = 255 ;
+	//	const unsigned long long col_mask = 72340172838076673 ;
+
+		// Check row
+		int shift = 8*y ;
+		if( table[ (unsigned char)((my_board>>shift)&row_mask) ][ (unsigned char)((op_board>>shift)&row_mask) ][x] )
+			return true ;
+		
+		// Check column
+		
+		// Check up-left - down-right
+		
+		// Check up-right - down-left
+
+		return false ;
+	}
+
+	bool*** construct_valid_move_table(){
+		bool*** table = new bool**[256] ;
+		for(int i = 0 ; i < 256 ; i++){
+			table[i] = new bool*[256] ;
+			for(int j = 0 ; j < 256 ; j++)
+				table[i][j] = new bool[8] ;
+		}
+
+		for(unsigned char my = 0 ; my < 256 ; my++){
+			for(unsigned char op = 0 ; op < 256 ; op++){
+				unsigned char pos = 1 ;
+				for(int p = 0 ; p < 8 ; p++, pos = pos<<1){
+
+					table[my][op][p] = false ;
+
+					if( (my&op) || (my&pos) || (op&pos) )
+						continue ;
+
+					// right
+					unsigned char tmppos = pos<<1 ;
+					if( op & tmppos ){
+						do {
+							tmppos = tmppos<<1 ;
+						}while( op & tmppos ) ;
+						if( my & tmppos ){
+							table[my][op][p] = true ;
+							continue ;
+						}
+					}
+		
+					// left
+					tmppos = pos>>1 ;
+					if( op & tmppos ){
+						do {
+							tmppos = tmppos>>1 ;
+						}while( op & tmppos ) ;
+						if( my & tmppos ){
+							table[my][op][p] = true ;
+							continue ;
+						}
+					}
+				}
+			}
+		}
+
+		return table ;
+	}
+	
 	// Input: pos = the position of the move (presented in bitboard)
 	// 	  ypos = the y-axis of the move (presented in bitboard)
 	bool is_valid_move(const unsigned long long pos, const unsigned char ypos)const{
