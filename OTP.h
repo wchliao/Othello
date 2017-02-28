@@ -14,6 +14,7 @@ const double UCB_c = 0.8 ;
 const double r_d = 1.5 ;
 const double sigma_e = 1.5 ;
 const int simulateN = 100 ;
+const int searchDepth = 5 ;
 const int alarm_time = 3 ;
 
 // global flags
@@ -138,8 +139,6 @@ class OTP{
 
 	//choose the best move in do_genmove
 	int do_genmove(){
-		int ans ;
-
 		struct itimerval time ;
 		time.it_interval.tv_usec = 0 ;
 		time.it_interval.tv_sec = 0 ;
@@ -150,7 +149,7 @@ class OTP{
 
 		stopflag = false ;
 
-		ans = genmove() ;
+		int ans = genmove() ;
 
 		time.it_value.tv_sec = 0 ;
 		if( setitimer( ITIMER_REAL, &time, NULL) < 0 )
@@ -161,7 +160,7 @@ class OTP{
 
 	//update board and history in do_play
 	void do_play(int x,int y){
-		if(Hp!=std::end(H)&&B.is_game_over()==0&&B.is_valid_move(x,y)){
+		if(Hp!=std::end(H)&&B.is_game_over()==0&&B.is_valid_move_int(x,y)){
 			Hp->black = B.get_black() ;
 			Hp->white = B.get_white() ;
 			Hp->pass = B.get_pass() ;
@@ -204,9 +203,17 @@ class OTP{
 			return 64 ;
 
 		bool my_tile = B.get_my_tile() ;
-		node *root = new node(B) ;
+		// Search
+//		int depth = 64 - __builtin_popcountll(B.get_black() & B.get_white()) ;
+//		if( depth < searchDepth ){
+//			unsigned long long ML[64], *MLED(root->B.get_valid_move(ML)) ;
+//			int nodeCount = MLED - ML ;
+//			for( int i = 0 ; i < nodeCount ; i++){
+//			}
+//		}
 
 		// Monte-Carlo
+		node *root = new node(B) ;
 		while(!stopflag){
 			grade g = root_simulate(root, my_tile, my_tile) ;
 			root->simulateCount += g.simulateCount ;
@@ -638,6 +645,48 @@ class OTP{
 		g.simulateCount = simulateN ;
 		return g ;
 	}
+
+//	int search(board B, int alpha, int beta){
+//		unsigned long long ML[64], *MLED(ML) ;
+//		bool my_tile = B.get_my_tile() ;
+//
+//		if( B.is_game_over() ){
+//			int score = B.get_score() ;
+//			if( score > 0 )
+//				score = 1 ;
+//			else if( score < 0 )
+//				score = -1 ;
+//
+//			if( my_tile )
+//				return -score ;
+//			else 
+//				return score ;
+//		}	
+//
+//		MLED = B.get_valid_move(ML) ;
+//		int nodeCount = MLED - ML ;
+//		if( nodeCount == 0 ){
+//			board tmpB = B ;
+//			tmpB.update(0) ; // pass
+//			return -search(tmpB) ;
+//		}
+//		else {
+//			bool havedraw = false ;
+//			int maxscore = -1000 ;
+//			for(int i = 0 ; i < nodeCount ; i++){
+//				board tmpB = B ;
+//				tmpB.update(ML[i]) ;
+//				int score = -search(tmpB) ;
+//				if( score > 0 )
+//					return score ;
+//				else if( result == 0 )
+//					havedraw = true ;
+//			}
+//
+//			if( havedraw )
+//				return 0 ;
+//		}
+//	}
 
 	bool no_valid_move(){
 		int ML[64], *MLED(B.get_valid_move(ML)) ;

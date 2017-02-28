@@ -246,6 +246,7 @@ class board{
 
 	bool is_valid_move_new(const int x, const int y){
 		static bool*** table = construct_valid_move_table() ;
+		static unsigned long long fill[] = {0, 1, 3, 7, 15, 31, 63, 127, 255} ;
 		
 		unsigned long long my_board, op_board ;
 		if( my_tile ){
@@ -257,20 +258,118 @@ class board{
 			op_board = white ;
 		}
 
-		const unsigned long long row_mask = 255 ;
-	//	const unsigned long long col_mask = 72340172838076673 ;
+		const unsigned long long row_mask = 	0xFF ;
+		const unsigned long long col_mask = 	0x0101010101010101 ;
+		const unsigned long long mplus_mask = 	0x0102040810204080 ;
+		const unsigned long long mminus_mask = 	0x8040201008040201 ;
 
+		const unsigned long long col_magic = mplus_mask ;
+		const unsigned long long m_magic = col_mask ;
+		
 		// Check row
-		int shift = 8*y ;
-		if( table[ (unsigned char)((my_board>>shift)&row_mask) ][ (unsigned char)((op_board>>shift)&row_mask) ][x] )
+		int shift = x<<3 ; // x*8
+		unsigned long long my = (my_board>>shift)&row_mask ;
+		unsigned long long op = (op_board>>shift)&row_mask ;
+		if( table[my][op][y] )
 			return true ;
 		
 		// Check column
-		
-		// Check up-left - down-right
-		
-		// Check up-right - down-left
+		my = my_board>>y ;
+		my = my & col_mask ;
+		my = my * col_magic ;
+		my = my>>56 ;
+		my = my & row_mask ;
 
+		op = op_board>>y ;
+		op = op & col_mask ;
+		op = op * col_magic ;
+		op = op>>56 ;
+		op = op & row_mask ;
+
+		if( table[my][op][x] )
+			return true ;
+		
+		// Check slope where m > 0
+		if( x + y > 7 ){
+			shift = (x+y-7)<<3 ; // (x+y-8)*8
+
+			my = my_board>>shift ;
+			my = my & mplus_mask ;
+			my = my * m_magic ;
+			my = my>>56 ;
+			my = my & row_mask ;
+
+			op = op_board>>shift ;
+			op = op & mplus_mask ;
+			op = op * m_magic ;
+			op = op>>56 ;
+			op = op | fill[x+y-7] ;
+			op = op & row_mask ;
+
+			if( table[my][op][y] )
+				return true ;
+		}
+		else {
+			shift = 7-x-y ; 
+
+			my = my_board<<shift ;
+			my = my & mplus_mask ;
+			my = my * m_magic ;
+			my = my>>56 ;
+			my = my & ~fill[shift] ;
+			my = my & row_mask ;
+
+			op = op_board<<shift ;
+			op = op & mplus_mask ;
+			op = op * m_magic ;
+			op = op>>56 ;
+			op = op | fill[shift] ;
+			op = op & row_mask ;
+
+			if( table[my][op][y+shift] )
+				return true ;
+		}
+		
+		// Check slope where m < 0
+		if( x < y ){
+			shift = (y-x)<<3 ; // (y-x)*8
+
+			my = my_board<<shift ;
+			my = my & mminus_mask ;
+			my = my * m_magic ;
+			my = my>>56 ;
+			my = my & row_mask ;
+
+			op = op_board<<shift ;
+			op = op & mminus_mask ;
+			op = op * m_magic ;
+			op = op>>56 ;
+			op = op | fill[y-x] ;
+			op = op & row_mask ;
+
+			if( table[my][op][y] )
+				return true ;
+		}
+		else {
+			shift = x-y ; 
+
+			my = my_board<<shift ;
+			my = my & mminus_mask ;
+			my = my * m_magic ;
+			my = my>>56 ;
+			my = my & ~fill[shift] ;
+			my = my & row_mask ;
+
+			op = op_board<<shift ;
+			op = op & mminus_mask ;
+			op = op * m_magic ;
+			op = op>>56 ;
+			op = op | fill[shift] ;
+			op = op & row_mask ;
+
+			if( table[my][op][y+shift] )
+				return true ;
+		}
 		return false ;
 	}
 
@@ -281,11 +380,12 @@ class board{
 			for(int j = 0 ; j < 256 ; j++)
 				table[i][j] = new bool[8] ;
 		}
+		// table's structure: table[my][op][p]
 
-		for(unsigned char my = 0 ; my < 256 ; my++){
-			for(unsigned char op = 0 ; op < 256 ; op++){
+		for(int my = 0 ; my < 256 ; ++my){
+			for(int op = 0 ; op < 256 ; ++op){
 				unsigned char pos = 1 ;
-				for(int p = 0 ; p < 8 ; p++, pos = pos<<1){
+				for(int p = 0 ; p < 8 ; ++p, pos = pos<<1){
 
 					table[my][op][p] = false ;
 
@@ -324,7 +424,7 @@ class board{
 	
 	// Input: pos = the position of the move (presented in bitboard)
 	// 	  ypos = the y-axis of the move (presented in bitboard)
-	bool is_valid_move(const unsigned long long pos, const unsigned char ypos)const{
+	bool is_valid_move(const unsigned long long pos, const unsigned char ypos){
 
 		if( black & pos || white & pos )
 			return false ;
@@ -342,100 +442,106 @@ class board{
 			my_board |= pos ;
 			op_board &= ~pos ;
 
-			unsigned long long p ;
-			unsigned char yp ;
+	//		unsigned long long p ;
+	//		unsigned char yp ;
 
 			// up
-			p = pos>>8 ;
-			if( op_board & p ){
-				do{
-					p = p>>8 ;
-				}while( op_board & p ) ;
-				if( my_board & p )
-					return true ;
-			}
+//			p = pos>>8 ;
+//			if( op_board & p ){
+//				do{
+//					p = p>>8 ;
+//				}while( op_board & p ) ;
+//				if( my_board & p )
+//					return true ;
+//			}
 
 			// up right
-			p = pos>>7 ;
-			yp = ypos<<1 ;
-			if( op_board & p && yp ){
-				do {
-					p = p>>7 ;
-					yp = yp<<1 ;
-				}while( op_board & p && yp ) ;
-				if( my_board & p && yp )
-					return true ;
-			}
+//			p = pos>>7 ;
+//			yp = ypos<<1 ;
+//			if( op_board & p && yp ){
+//				do {
+//					p = p>>7 ;
+//					yp = yp<<1 ;
+//				}while( op_board & p && yp ) ;
+//				if( my_board & p && yp )
+//					return true ;
+//			}
 
 			// right
-			p = pos<<1 ;
-			yp = ypos<<1 ;
-			if( op_board & p && yp ){
-				do {
-					p = p<<1 ;
-					yp = yp<<1 ;
-				}while( op_board & p && yp ) ;
-				if( my_board & p && yp )
-					return true ;
-			}
+//			p = pos<<1 ;
+//			yp = ypos<<1 ;
+//			if( op_board & p && yp ){
+//				do {
+//					p = p<<1 ;
+//					yp = yp<<1 ;
+//				}while( op_board & p && yp ) ;
+//				if( my_board & p && yp )
+//					return true ;
+//			}
 	
 			// down right
-			p = pos<<9 ;
-			yp = ypos<<1 ;
-			if( op_board & p && yp ){
-				do {
-					p = p<<9 ;
-					yp = yp<<1 ;
-				}while( op_board & p && yp ) ;
-				if( my_board & p && yp )
-					return true ;
-			}
+	//		p = pos<<9 ;
+	//		yp = ypos<<1 ;
+	//		if( op_board & p && yp ){
+	//			do {
+	//				p = p<<9 ;
+	//				yp = yp<<1 ;
+	//			}while( op_board & p && yp ) ;
+	//			if( my_board & p && yp )
+	//				return true ;
+	//		}
 			
 			// down
-			p = pos<<8 ;
-			if( op_board & p ){
-				do {
-					p = p<<8 ;
-				}while( op_board & p ) ;
-				if( my_board & p )
-					return true ;
-			}
+//			p = pos<<8 ;
+//			if( op_board & p ){
+//				do {
+//					p = p<<8 ;
+//				}while( op_board & p ) ;
+//				if( my_board & p )
+//					return true ;
+//			}
 			
 			// down left
-			p = pos<<7 ;
-			yp = ypos>>1 ;
-			if( op_board & p && yp ){
-				do {
-					p = p<<7 ;
-					yp = yp>>1 ;
-				}while( op_board & p && yp ) ;
-				if( my_board & p && yp )
-					return true ;
-			}
+//			p = pos<<7 ;
+//			yp = ypos>>1 ;
+//			if( op_board & p && yp ){
+//				do {
+//					p = p<<7 ;
+//					yp = yp>>1 ;
+//				}while( op_board & p && yp ) ;
+//				if( my_board & p && yp )
+//					return true ;
+//			}
 			
 			// left
-			p = pos>>1 ;
-			yp = ypos>>1 ;
-			if( op_board & p && yp ){
-				do {
-					p = p>>1 ;
-					yp = yp>>1 ;
-				}while( op_board & p && yp ) ;
-				if( my_board & p && yp )
-					return true ;
-			}
+//			p = pos>>1 ;
+//			yp = ypos>>1 ;
+//			if( op_board & p && yp ){
+//				do {
+//					p = p>>1 ;
+//					yp = yp>>1 ;
+//				}while( op_board & p && yp ) ;
+//				if( my_board & p && yp )
+//					return true ;
+//			}
 			
-			// up left
-			p = pos>>9 ;
-			yp = ypos>>1 ;
-			if( op_board & p && yp ){
-				do {
-					p = p>>9 ;
-					yp = yp>>1 ;
-				}while( op_board & p && yp ) ;
-				if( my_board & p && yp )
-					return true ;
-			}
+	//		// up left
+	//		p = pos>>9 ;
+	//		yp = ypos>>1 ;
+	//		if( op_board & p && yp ){
+	//			do {
+	//				p = p>>9 ;
+	//				yp = yp>>1 ;
+	//			}while( op_board & p && yp ) ;
+	//			if( my_board & p && yp )
+	//				return true ;
+	//		}
+
+			int ipos = __builtin_ctzll(pos) ;
+			int ixpos = ipos/8 ;
+			int iypos = ipos%8 ;
+			if( is_valid_move_new(ixpos, iypos) )
+				return true ;
 		}
 
 		return false ;
@@ -443,7 +549,7 @@ class board{
 
 	// Input: x = x-axis of the move 
 	// 	  y = y-axis of the move
-	bool is_valid_move(int x,int y)const{
+	bool is_valid_move_int(int x,int y){
 		if( x == 8 && y == 0 ){ 
 			unsigned long long b[64] ;
 			return b == get_valid_move(b) ;
@@ -456,7 +562,7 @@ class board{
 	}
 
 	// Input: val = the pointer of valid move array
-	unsigned long long* get_valid_move(unsigned long long* val)const{
+	unsigned long long* get_valid_move(unsigned long long* val){
 
 		unsigned long long p = 1 ;
 		unsigned char yp = 1 ;
@@ -476,7 +582,7 @@ class board{
 	}
 
 	// Input: val = the pointer of valid move array
-	int* get_valid_move(int* val)const{
+	int* get_valid_move(int* val){
 
 		unsigned long long p = 1 ;
 		unsigned char yp = 1 ;
