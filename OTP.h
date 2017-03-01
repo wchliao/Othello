@@ -646,47 +646,46 @@ class OTP{
 		return g ;
 	}
 
-//	int search(board B, int alpha, int beta){
-//		unsigned long long ML[64], *MLED(ML) ;
-//		bool my_tile = B.get_my_tile() ;
-//
-//		if( B.is_game_over() ){
-//			int score = B.get_score() ;
-//			if( score > 0 )
-//				score = 1 ;
-//			else if( score < 0 )
-//				score = -1 ;
-//
-//			if( my_tile )
-//				return -score ;
-//			else 
-//				return score ;
-//		}	
-//
-//		MLED = B.get_valid_move(ML) ;
-//		int nodeCount = MLED - ML ;
-//		if( nodeCount == 0 ){
-//			board tmpB = B ;
-//			tmpB.update(0) ; // pass
-//			return -search(tmpB) ;
-//		}
-//		else {
-//			bool havedraw = false ;
-//			int maxscore = -1000 ;
-//			for(int i = 0 ; i < nodeCount ; i++){
-//				board tmpB = B ;
-//				tmpB.update(ML[i]) ;
-//				int score = -search(tmpB) ;
-//				if( score > 0 )
-//					return score ;
-//				else if( result == 0 )
-//					havedraw = true ;
-//			}
-//
-//			if( havedraw )
-//				return 0 ;
-//		}
-//	}
+	int Search(board B, int alpha, int beta){
+		unsigned long long ML[64], *MLED(ML) ;
+		bool my_tile = B.get_my_tile() ;
+
+		if( B.is_game_over() ){
+			int score = B.get_score() ;
+			if( score > 0 )
+				score = 1 ;
+			else if( score < 0 )
+				score = -1 ;
+
+			if( my_tile )
+				return -score ;
+			else 
+				return score ;
+		}	
+
+		int m = alpha ;
+
+		MLED = B.get_valid_move(ML) ;
+		int nodeCount = MLED - ML ;
+		if( nodeCount == 0 ){
+			board tmpB = B ;
+			tmpB.update(0) ; // pass
+			return -Search(tmpB, -beta, -m) ;
+		}
+		else {
+			for(int i = 0 ; i < nodeCount ; i++){
+				board tmpB = B ;
+				tmpB.update(ML[i]) ;
+				int t = -Search(tmpB, -beta, -m) ;
+				if( t > m )
+					m = t ;
+				if( m >= t )
+					return m ;
+			}
+		}
+
+		return m ;
+	}
 
 	bool no_valid_move(){
 		int ML[64], *MLED(B.get_valid_move(ML)) ;
