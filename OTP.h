@@ -15,7 +15,7 @@ const double r_d = 1.5 ;
 const double sigma_e = 10000 ;
 const int simulateN = 100 ;
 const int searchDepth = 5 ;
-const int alarm_time = 1 ;
+const int alarm_time = 9 ;
 
 // global flags
 bool stopflag = false ;
@@ -221,7 +221,7 @@ class OTP{
 		// Monte-Carlo
 		node *root = new node(B) ;
 		while(!stopflag){
-			grade g = root_simulate(root, my_tile, my_tile) ;
+			grade g = root_simulate(root, my_tile, my_tile, 0) ;
 			root->simulateCount += g.simulateCount ;
 		}
 
@@ -238,7 +238,7 @@ class OTP{
 		return pos ;
 	}
 
-	grade root_simulate(node *root, bool my_tile, bool top_root_tile){
+	grade root_simulate(node *root, bool my_tile, bool top_root_tile, int dep){
 		grade g ;
 
 		if( root->B.is_game_over() ){
@@ -279,7 +279,7 @@ class OTP{
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
 			}
-			g = root_simulate(maxN, !my_tile, top_root_tile) ;
+			g = root_simulate(maxN, !my_tile, top_root_tile, dep+1) ;
 			
 			// Back propagation
 			if( my_tile == top_root_tile ){
@@ -447,16 +447,17 @@ class OTP{
 				root->child->pos = ML[0] ;
 			}
 
-			double pot = UCB_c*sqrt(log(simulateN*nodeCount)/simulateN) ;
+			int simulateCount = simulateN/nodeCount ;
+			double pot = UCB_c*sqrt(log(simulateCount*nodeCount)/simulateCount) ;
 			root->child->pot = pot ;
-			root->child->simulateCount = simulateN ;
+			root->child->simulateCount = simulateCount ;
 			root->child->B.update(root->child->pos) ;
 
 			tmpN = root->child ;
 			for( int i = 1 ; i < nodeCount ; i++ ){
 				tmpN->next->pos = ML[i] ;
 				tmpN->next->pot = pot ;
-				tmpN->next->simulateCount = simulateN ;
+				tmpN->next->simulateCount = simulateCount ;
 				tmpN->next->B.update(tmpN->next->pos) ;
 				tmpN = tmpN->next ;
 			}
@@ -470,7 +471,7 @@ class OTP{
 			tmpN = root->child ;
 			if( my_tile == top_root_tile ){
 				for( int i = 0 ; i < nodeCount ; i++ ){
-					tmpg = leaf_simulate(tmpN->B, top_root_tile) ;
+					tmpg = leaf_simulate(tmpN->B, top_root_tile, simulateCount) ;
 					tmpN->win = tmpg.win ;
 					tmpN->lose = tmpg.lose ;
 					tmpN->draw = tmpg.draw ;
@@ -492,7 +493,7 @@ class OTP{
 			}
 			else {
 				for( int i = 0 ; i < nodeCount ; i++ ){
-					tmpg = leaf_simulate(tmpN->B, top_root_tile) ;
+					tmpg = leaf_simulate(tmpN->B, top_root_tile, simulateCount) ;
 					tmpN->win = tmpg.lose ;
 					tmpN->lose = tmpg.win ;
 					tmpN->draw = tmpg.draw ;
@@ -615,12 +616,12 @@ class OTP{
 		return g ;
 	}
 
-	grade leaf_simulate(board B, bool my_tile){
+	grade leaf_simulate(board B, bool my_tile, int simulateCount){
 		grade g ;
 		unsigned long long ML[64], *MLED(ML) ;
 		int score ;
 
-		for( int t = 0 ; t < simulateN ; t++ ){
+		for( int t = 0 ; t < simulateCount ; t++ ){
 			board tmpB = B ;
 			while(!tmpB.is_game_over()){
 				MLED = tmpB.get_valid_move(ML) ;
@@ -647,10 +648,10 @@ class OTP{
 					++g.draw ;
 			}
 		}
-		g.simulateCount = simulateN ;
+		g.simulateCount = simulateCount ;
 		g.sum1 = g.win ;
 		g.sum2 = g.sum1*g.sum1 ;
-		totalsim += simulateN ;
+		totalsim += simulateCount ;
 		return g ;
 	}
 
