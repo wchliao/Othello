@@ -12,15 +12,17 @@
 // parameters
 const double UCB_c = 0.8 ;
 const double r_d = 1.5 ;
-const double sigma_e = 1.5 ;
+const double sigma_e = 10000 ;
 const int simulateN = 100 ;
 const int searchDepth = 5 ;
-const int alarm_time = 3 ;
+const int alarm_time = 1 ;
 
 // global flags
 bool stopflag = false ;
 
 // global variables
+int cutCount = 0 ;
+int totalsim = 0 ;
 
 static void sig_handler(int signo){
 	stopflag = true ;
@@ -150,6 +152,10 @@ class OTP{
 		stopflag = false ;
 
 		int ans = genmove() ;
+		fprintf(stderr,"cutCount = %d\n", cutCount);
+		fprintf(stderr,"totalsim = %d\n", totalsim);
+		cutCount = 0 ;
+		totalsim = 0 ;
 
 		time.it_value.tv_sec = 0 ;
 		if( setitimer( ITIMER_REAL, &time, NULL) < 0 )
@@ -244,8 +250,8 @@ class OTP{
 					g.win = simulateN ;
 				else
 					g.draw = simulateN ;
-				g.sum1 = -simulateN*score ;
-				g.sum2 = simulateN*score*score ;
+				g.sum1 = -simulateN ;
+				g.sum2 = g.sum1*g.sum1 ;
 			}
 			else {
 				if( score > 0 )
@@ -254,10 +260,11 @@ class OTP{
 					g.lose = simulateN;
 				else
 					g.draw = simulateN ;
-				g.sum1 = simulateN*score ;
-				g.sum2 = simulateN*score*score ;
+				g.sum1 = simulateN ;
+				g.sum2 = g.sum1*g.sum1 ;
 			}
 			g.simulateCount = simulateN ;
+			totalsim += simulateN ;
 			root->simulateCount += g.simulateCount ; 
 			return g ;
 		}
@@ -328,6 +335,7 @@ class OTP{
 						--root->childCount ;
 						cur = root->child ;
 						++i ;
+						++cutCount ;
 					}
 					else {
 						root->simulateCount += cur->simulateCount ;
@@ -347,6 +355,7 @@ class OTP{
 						--root->childCount ;
 						cur = prev->next ;
 						++i ;
+						++cutCount ;
 					}
 					else {
 						root->simulateCount += cur->simulateCount ;
@@ -366,6 +375,7 @@ class OTP{
 						--root->childCount ;
 						cur = root->child ;
 						++i ;
+						++cutCount ;
 					}
 					else {
 						root->simulateCount += cur->simulateCount ;
@@ -385,6 +395,7 @@ class OTP{
 						--root->childCount ;
 						cur = prev->next ;
 						++i ;
+						++cutCount ;
 					}
 					else {
 						root->simulateCount += cur->simulateCount ;
@@ -626,9 +637,6 @@ class OTP{
 					++g.win ;
 				else
 					++g.draw ;
-
-				g.sum1 -= score ;
-				g.sum2 += score*score ;
 			}
 			else {
 				if( score > 0 )
@@ -637,12 +645,12 @@ class OTP{
 					++g.lose ;
 				else
 					++g.draw ;
-
-				g.sum1 += score ;
-				g.sum2 += score*score ;
 			}
 		}
 		g.simulateCount = simulateN ;
+		g.sum1 = g.win ;
+		g.sum2 = g.sum1*g.sum1 ;
+		totalsim += simulateN ;
 		return g ;
 	}
 
@@ -704,7 +712,7 @@ class OTP{
 	bool do_op(const char*cmd,char*out,FILE*myerr){
 		switch(my_hash(cmd)){
 			case my_hash("name"):
-				sprintf(out,"name B02902105");
+				sprintf(out,"name Wei_Chung_Liao");
 				return true;
 			case my_hash("clear_board"):
 				do_init();
