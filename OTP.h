@@ -21,7 +21,6 @@ const int alarm_time = 9 ;
 bool stopflag = false ;
 
 // global variables
-int cutCount = 0 ;
 int totalsim = 0 ;
 
 static void sig_handler(int signo){
@@ -49,10 +48,7 @@ struct grade {
 	int draw ;
 	int simulateCount ;
 
-	int sum1 ;
-	int sum2 ;
-
-	constexpr grade(): win(0), lose(0), draw(0), simulateCount(0), sum1(0), sum2(0) {}
+	constexpr grade(): win(0), lose(0), draw(0), simulateCount(0) {}
 } ;
 
 struct node {
@@ -70,25 +66,15 @@ struct node {
 	struct node *child ;
 	struct node *next ;
 
-	int sum1 ;
-	int sum2 ;
-	double sv ;
-	double ml ;
-	double mr ;
-			
 	constexpr node(): 
 	win(0), lose(0), draw(0), pos(0), winrate(0), pot(0), 
 	B(), simulateCount(0),
-	childCount(0), child(NULL), next(NULL), 
-	sum1(0), sum2(0),
-	sv(0), ml(0), mr(0) {}
+	childCount(0), child(NULL), next(NULL) {}
 
 	constexpr node(board _B): 
 	win(0), lose(0), draw(0), pos(0), winrate(0), pot(0), 
 	B(_B), simulateCount(0), 
-	childCount(0), child(NULL), next(NULL), 
-	sum1(0), sum2(0),
-	sv(0), ml(0), mr(0) {}
+	childCount(0), child(NULL), next(NULL) {}
 } ;
 
 void destroyTree(node *root){
@@ -152,9 +138,7 @@ class OTP{
 		stopflag = false ;
 
 		int ans = genmove() ;
-		fprintf(stderr,"cutCount = %d\n", cutCount);
 		fprintf(stderr,"totalsim = %d\n", totalsim);
-		cutCount = 0 ;
 		totalsim = 0 ;
 
 		time.it_value.tv_sec = 0 ;
@@ -221,7 +205,7 @@ class OTP{
 		// Monte-Carlo
 		node *root = new node(B) ;
 		while(!stopflag){
-			grade g = root_simulate(root, my_tile, my_tile, 0) ;
+			grade g = root_simulate(root, my_tile, my_tile) ;
 			root->simulateCount += g.simulateCount ;
 		}
 
@@ -238,7 +222,7 @@ class OTP{
 		return pos ;
 	}
 
-	grade root_simulate(node *root, bool my_tile, bool top_root_tile, int dep){
+	grade root_simulate(node *root, bool my_tile, bool top_root_tile){
 		grade g ;
 
 		if( root->B.is_game_over() ){
@@ -250,8 +234,6 @@ class OTP{
 					g.win = simulateN ;
 				else
 					g.draw = simulateN ;
-				g.sum1 = -simulateN ;
-				g.sum2 = g.sum1*g.sum1 ;
 			}
 			else {
 				if( score > 0 )
@@ -260,8 +242,6 @@ class OTP{
 					g.lose = simulateN;
 				else
 					g.draw = simulateN ;
-				g.sum1 = simulateN ;
-				g.sum2 = g.sum1*g.sum1 ;
 			}
 			g.simulateCount = simulateN ;
 			totalsim += simulateN ;
@@ -279,150 +259,27 @@ class OTP{
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
 			}
-			g = root_simulate(maxN, !my_tile, top_root_tile, dep+1) ;
+			g = root_simulate(maxN, !my_tile, top_root_tile) ;
 			
 			// Back propagation
 			if( my_tile == top_root_tile ){
 				maxN->win += g.win ;
 				maxN->lose += g.lose ;
 				maxN->draw += g.draw ;
-				maxN->sum1 += g.sum1 ;
-				maxN->sum2 += g.sum2 ;
 			}
 			else {
 				maxN->win += g.lose ;
 				maxN->lose += g.win ;
 				maxN->draw += g.draw ;
-				maxN->sum1 -= g.sum1 ;
-				maxN->sum2 += g.sum2 ;
 			}
 			maxN->winrate = double(maxN->win)/maxN->simulateCount ;
+			maxN->pot *= sqrt((double)(maxN->simulateCount - g.simulateCount) / maxN->simulateCount) ;
 			
-			double mean = maxN->sum1/maxN->simulateCount ;
-			maxN->sv = sqrt((maxN->sum2-2*mean*maxN->sum1)/maxN->simulateCount + mean*mean) ;
-			maxN->ml = mean - r_d*maxN->sv ;
-			maxN->mr = -(maxN->ml-2*mean) ;
-
-			// Pruning
-			bool maxcut = false ;
-			double maxml, maxmlsv ;
-
+			double pot = sqrt(log(root->simulateCount + g.simulateCount)/log(root->simulateCount)) ;
 			tmpN = root->child ;
-			maxml = tmpN->ml ;
-			maxmlsv = tmpN->sv ;
-			tmpN = tmpN->next ;
-			for( int i = 1 ; i < root->childCount ; i++ ){
-				if( tmpN->ml > maxml ){
-					maxml = tmpN->ml ;
-					maxmlsv = tmpN->sv ;
-				}
+			for( int i = 0 ; i < root->childCount ; ++i ){
+				tmpN->pot *= pot ;
 				tmpN = tmpN->next ;
-			}
-
-			node *prev ;
-			node *cur = root->child ;
-			int oldChildCount = root->childCount ;
-			int oldsimulateCount = root->simulateCount ;
-			root->simulateCount = 0 ;
-			int i = 0 ;
-			if( my_tile == top_root_tile ){
-				do{
-					if( maxmlsv < sigma_e && cur->sv < sigma_e && cur->mr < maxml ){
-						if( maxN == cur )
-							maxcut = true ;
-						root->child = cur->next ;
-						destroyTree(cur) ;
-						--root->childCount ;
-						cur = root->child ;
-						++i ;
-						++cutCount ;
-					}
-					else {
-						root->simulateCount += cur->simulateCount ;
-						prev = root->child ;
-						cur = cur->next ;
-						++i ;
-						break ;
-					}
-				}while( i < oldChildCount ) ;
-
-				while( i < oldChildCount){
-					if( maxmlsv < sigma_e && cur->sv < sigma_e && cur->mr < maxml ){
-						if( maxN == cur )
-							maxcut = true ;
-						prev->next = cur->next ;
-						destroyTree(cur) ;
-						--root->childCount ;
-						cur = prev->next ;
-						++i ;
-						++cutCount ;
-					}
-					else {
-						root->simulateCount += cur->simulateCount ;
-						prev = cur ;
-						cur = cur->next ;
-						++i ;
-					}
-				}
-			}
-			else {
-				do{
-					if( maxmlsv < sigma_e && cur->sv < sigma_e && cur->mr < maxml ){
-						if( maxN == cur )
-							maxcut = true ;
-						root->child = cur->next ;
-						destroyTree(cur) ;
-						--root->childCount ;
-						cur = root->child ;
-						++i ;
-						++cutCount ;
-					}
-					else {
-						root->simulateCount += cur->simulateCount ;
-						prev = root->child ;
-						cur = cur->next ;
-						++i ;
-						break ;
-					}
-				}while( i < oldChildCount ) ;
-
-				while( i < oldChildCount){
-					if( maxmlsv < sigma_e && cur->sv < sigma_e && cur->mr < maxml ){
-						if( maxN == cur )
-							maxcut = true ;
-						prev->next = cur->next ;
-						destroyTree(cur) ;
-						--root->childCount ;
-						cur = prev->next ;
-						++i ;
-						++cutCount ;
-					}
-					else {
-						root->simulateCount += cur->simulateCount ;
-						prev = cur ;
-						cur = cur->next ;
-						++i ;
-					}
-				}
-			}
-			
-			double pot = sqrt(log(root->simulateCount)/log(oldsimulateCount)) ;
-			tmpN = root->child ;
-			for( int i = 0 ; i < root->childCount ; i++ ){
-				if( tmpN != maxN )
-					tmpN->pot *= pot ;
-				tmpN = tmpN->next ;
-			}
-			if( maxcut ){
-				g.win = 0 ;
-				g.lose = 0 ;
-				g.draw = 0 ;
-				g.simulateCount = 0 ;
-				g.sum1 = 0 ;
-				g.sum2 = 0 ;
-			}
-			else{
-				maxN->pot = UCB_c*sqrt(log(root->simulateCount)/maxN->simulateCount) ;
 			}
 		}
 		else {
@@ -465,9 +322,6 @@ class OTP{
 
 			// Simulations
 			grade tmpg ;
-			double maxml = -1000000 ;
-			double maxmlsv = -1 ;
-			double mean ;
 			tmpN = root->child ;
 			if( my_tile == top_root_tile ){
 				for( int i = 0 ; i < nodeCount ; i++ ){
@@ -476,19 +330,11 @@ class OTP{
 					tmpN->lose = tmpg.lose ;
 					tmpN->draw = tmpg.draw ;
 					tmpN->winrate = double(tmpN->win)/tmpN->simulateCount ;
-					tmpN->sum1 = tmpg.sum1 ;
-					tmpN->sum2 = tmpg.sum2 ;
-					
-					mean = tmpN->sum1/tmpN->simulateCount ;
-					tmpN->sv = sqrt((tmpN->sum2-2*mean*tmpN->sum1)/tmpN->simulateCount + mean*mean) ;
-					tmpN->ml = mean - r_d*tmpN->sv ;
-					tmpN->mr = -(tmpN->ml-2*mean) ;
-					if( tmpN->ml > maxml ){
-						maxml = tmpN->ml ;
-						maxmlsv = tmpN->sv ;
-					}
-					
 					tmpN = tmpN->next ;
+
+					g.win += tmpg.win ;
+					g.lose += tmpg.lose ;
+					g.draw += tmpg.draw ;
 				}
 			}
 			else {
@@ -498,118 +344,16 @@ class OTP{
 					tmpN->lose = tmpg.win ;
 					tmpN->draw = tmpg.draw ;
 					tmpN->winrate = double(tmpN->win)/tmpN->simulateCount ;
-					tmpN->sum1 = -tmpg.sum1 ;
-					tmpN->sum2 = tmpg.sum2 ;
-					
-					mean = tmpN->sum1/tmpN->simulateCount ;
-					tmpN->sv = sqrt((tmpN->sum2-2*mean*tmpN->sum1)/tmpN->simulateCount + mean*mean) ;
-					tmpN->ml = mean - r_d*tmpN->sv ;
-					tmpN->mr = -(tmpN->ml-2*mean) ;
-					if( tmpN->ml > maxml ){
-						maxml = tmpN->ml ;
-						maxmlsv = tmpN->sv ;
-					}
-					
 					tmpN = tmpN->next ;
+					
+					g.win += tmpg.win ;
+					g.lose += tmpg.lose ;
+					g.draw += tmpg.draw ;
 				}
 			}
 
-			// Pruning
-			node *prev ;
-			node *cur = root->child ;
-			int i = 0 ;
-			if( my_tile == top_root_tile ){
-				do{
-					if( maxmlsv < sigma_e && cur->sv < sigma_e && cur->mr < maxml ){
-						root->child = cur->next ;
-						destroyTree(cur) ;
-						--root->childCount ;
-						cur = root->child ;
-						++i ;
-					}
-					else {
-						g.win += cur->win ;
-						g.lose += cur->lose ;
-						g.draw += cur->draw ;
-						g.simulateCount += cur->simulateCount ;
-						g.sum1 += cur->sum1 ;
-						g.sum2 += cur->sum2 ;
-						root->simulateCount += cur->simulateCount ;
-						prev = root->child ;
-						cur = cur->next ;
-						++i ;
-						break ;
-					}
-				}while( i < nodeCount ) ;
-
-				while( i < nodeCount){
-					if( maxmlsv < sigma_e && cur->sv < sigma_e && cur->mr < maxml ){
-						prev->next = cur->next ;
-						destroyTree(cur) ;
-						--root->childCount ;
-						cur = prev->next ;
-						++i ;
-					}
-					else {
-						g.win += cur->win ;
-						g.lose += cur->lose ;
-						g.draw += cur->draw ;
-						g.simulateCount += cur->simulateCount ;
-						g.sum1 += cur->sum1 ;
-						g.sum2 += cur->sum2 ;
-						root->simulateCount += cur->simulateCount ;
-						prev = cur ;
-						cur = cur->next ;
-						++i ;
-					}
-				}
-			}
-			else {
-				do{
-					if( maxmlsv < sigma_e && cur->sv < sigma_e && cur->mr < maxml ){
-						root->child = cur->next ;
-						destroyTree(cur) ;
-						--root->childCount ;
-						cur = root->child ;
-						++i ;
-					}
-					else {
-						g.win += cur->lose ;
-						g.lose += cur->win ;
-						g.draw += cur->draw ;
-						g.simulateCount += cur->simulateCount ;
-						g.sum1 -= cur->sum1 ;
-						g.sum2 += cur->sum2 ;
-						root->simulateCount += cur->simulateCount ;
-						prev = root->child ;
-						cur = cur->next ;
-						++i ;
-						break ;
-					}
-				}while( i < nodeCount ) ;
-
-				while( i < nodeCount){
-					if( maxmlsv < sigma_e && cur->sv < sigma_e && cur->mr < maxml ){
-						prev->next = cur->next ;
-						destroyTree(cur) ;
-						--root->childCount ;
-						cur = prev->next ;
-						++i ;
-					}
-					else {
-						g.win += cur->lose ;
-						g.lose += cur->win ;
-						g.draw += cur->draw ;
-						g.simulateCount += cur->simulateCount ;
-						g.sum1 -= cur->sum1 ;
-						g.sum2 += cur->sum2 ;
-						root->simulateCount += cur->simulateCount ;
-						prev = cur ;
-						cur = cur->next ;
-						++i ;
-					}
-				}
-			}
+			g.simulateCount = simulateCount*nodeCount ;
+			root->simulateCount += g.simulateCount ;
 		}
 
 		// Back propagation
@@ -649,8 +393,6 @@ class OTP{
 			}
 		}
 		g.simulateCount = simulateCount ;
-		g.sum1 = g.win ;
-		g.sum2 = g.sum1*g.sum1 ;
 		totalsim += simulateCount ;
 		return g ;
 	}
