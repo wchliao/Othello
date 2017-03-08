@@ -8,19 +8,18 @@
 #include<sys/time.h>
 #include<signal.h>
 #include<cmath>
+#include<utility>
 
 // parameters
 const double UCB_c = 0.8 ;
-const double r_d = 1.5 ;
-const double sigma_e = 10000 ;
 const int simulateN = 100 ;
 const int searchDepth = 5 ;
-const int alarm_time = 9 ;
+const int alarm_time = 3 ;
 
 // global flags
 bool stopflag = false ;
 
-// global variables
+// global counters
 int totalsim = 0 ;
 
 static void sig_handler(int signo){
@@ -55,7 +54,7 @@ struct node {
 	int win ;
 	int lose ;
 	int draw ;
-	unsigned long long pos ;
+	std::pair<int,int> pos ;
 	double winrate ;
 	double pot ;
 	board B ;
@@ -67,12 +66,12 @@ struct node {
 	struct node *next ;
 
 	constexpr node(): 
-	win(0), lose(0), draw(0), pos(0), winrate(0), pot(0), 
+	win(0), lose(0), draw(0), pos(), winrate(0), pot(0), 
 	B(), simulateCount(0),
 	childCount(0), child(NULL), next(NULL) {}
 
 	constexpr node(board _B): 
-	win(0), lose(0), draw(0), pos(0), winrate(0), pot(0), 
+	win(0), lose(0), draw(0), pos(), winrate(0), pot(0), 
 	B(_B), simulateCount(0), 
 	childCount(0), child(NULL), next(NULL) {}
 } ;
@@ -82,7 +81,7 @@ void destroyTree(node *root){
 		node *cur = root->child ;
 		node *next = cur->next ;
 		destroyTree(cur) ;
-		for( int i = 1 ; i < root->childCount ; i++ ){
+		for( int i = 1 ; i < root->childCount ; ++i ){
 			cur = next ;
 			next = cur->next ;
 			destroyTree(cur) ;
@@ -126,7 +125,7 @@ class OTP{
 	}
 
 	//choose the best move in do_genmove
-	int do_genmove(){
+	std::pair<int,int> do_genmove(){
 		struct itimerval time ;
 		time.it_interval.tv_usec = 0 ;
 		time.it_interval.tv_sec = 0 ;
@@ -137,7 +136,7 @@ class OTP{
 
 		stopflag = false ;
 
-		int ans = genmove() ;
+		std::pair<int,int> ans = genmove() ;
 		fprintf(stderr,"totalsim = %d\n", totalsim);
 		totalsim = 0 ;
 
@@ -150,7 +149,7 @@ class OTP{
 
 	//update board and history in do_play
 	void do_play(int x,int y){
-		if(Hp!=std::end(H)&&B.is_game_over()==0&&B.is_valid_move_int(x,y)){
+		if(Hp!=std::end(H)&&B.is_game_over()==0&&B.is_valid_move(x,y)){
 			Hp->black = B.get_black() ;
 			Hp->white = B.get_white() ;
 			Hp->pass = B.get_pass() ;
@@ -172,35 +171,15 @@ class OTP{
 		}
 	}
 
-	// find and print all valid move
-	int* do_validmove(int *p){
-		unsigned long long llp[64], *llpED(llp) ;
-		llpED = B.get_valid_move(llp) ;
-		if( llp == llpED )
-			return p ;
-		else {
-			do{
-				--llpED ;
-				*p = __builtin_ctzll(*llpED) ;
-				++p ;
-			}while( llp != llpED ) ;
-			return p ;
-		}
-	}
-
-	int genmove(){
+	std::pair<int,int> genmove(){
 		if( no_valid_move() )
-			return 64 ;
+			return std::pair<int,int>(8,0) ;
 
 		bool my_tile = B.get_my_tile() ;
 		// Search
 //		int depth = 64 - __builtin_popcountll(B.get_black() & B.get_white()) ;
-//		if( depth < searchDepth ){
-//			unsigned long long ML[64], *MLED(root->B.get_valid_move(ML)) ;
-//			int nodeCount = MLED - ML ;
-//			for( int i = 0 ; i < nodeCount ; i++){
-//			}
-//		}
+//		if( depth < searchDepth )
+//			return SearchBestMove(B) ;
 
 		// Monte-Carlo
 		node *root = new node(B) ;
@@ -211,15 +190,14 @@ class OTP{
 
 		node *maxN = root->child ;
 		node *tmpN = root->child->next ;
-		for( int i = 1 ; i < root->childCount ; i++ ){
+		for( int i = 1 ; i < root->childCount ; ++i ){
 			if( tmpN->winrate > maxN->winrate )
 				maxN = tmpN ;
 			tmpN = tmpN->next ;
 		}
 
-		int pos = __builtin_ctzll(maxN->pos) ;
 		destroyTree(root) ;
-		return pos ;
+		return maxN->pos ;
 	}
 
 	grade root_simulate(node *root, bool my_tile, bool top_root_tile){
@@ -254,7 +232,7 @@ class OTP{
 		if( root->childCount > 0 ){
 			node *maxN = root->child ;
 			tmpN = maxN->next ;
-			for( int i = 1 ; i < root->childCount ; i++ ){
+			for( int i = 1 ; i < root->childCount ; ++i ){
 				if( tmpN->winrate + tmpN->pot > maxN->winrate + maxN->pot )
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
@@ -283,7 +261,7 @@ class OTP{
 			}
 		}
 		else {
-			unsigned long long ML[64], *MLED(root->B.get_valid_move(ML)) ;
+			std::pair<int,int> ML[64], *MLED(root->B.get_valid_move(ML)) ;
 			int nodeCount = MLED - ML ;
 
 			// Expansion
@@ -291,13 +269,13 @@ class OTP{
 				nodeCount = 1 ;
 				root->child = new node(root->B) ;
 				root->childCount = nodeCount ;
-				root->child->pos = 0 ;
+				root->child->pos = std::pair<int,int>(8,0) ;
 			}
 			else {
 				root->child = new node(root->B) ;
 				root->childCount = nodeCount ;
 				tmpN = root->child ;
-				for( int i = 1 ; i < nodeCount ; i++ ){
+				for( int i = 1 ; i < nodeCount ; ++i ){
 					tmpN->next = new node(root->B) ;
 					tmpN = tmpN->next ;
 				}
@@ -311,7 +289,7 @@ class OTP{
 			root->child->B.update(root->child->pos) ;
 
 			tmpN = root->child ;
-			for( int i = 1 ; i < nodeCount ; i++ ){
+			for( int i = 1 ; i < nodeCount ; ++i ){
 				tmpN->next->pos = ML[i] ;
 				tmpN->next->pot = pot ;
 				tmpN->next->simulateCount = simulateCount ;
@@ -324,7 +302,7 @@ class OTP{
 			grade tmpg ;
 			tmpN = root->child ;
 			if( my_tile == top_root_tile ){
-				for( int i = 0 ; i < nodeCount ; i++ ){
+				for( int i = 0 ; i < nodeCount ; ++i ){
 					tmpg = leaf_simulate(tmpN->B, top_root_tile, simulateCount) ;
 					tmpN->win = tmpg.win ;
 					tmpN->lose = tmpg.lose ;
@@ -338,7 +316,7 @@ class OTP{
 				}
 			}
 			else {
-				for( int i = 0 ; i < nodeCount ; i++ ){
+				for( int i = 0 ; i < nodeCount ; ++i ){
 					tmpg = leaf_simulate(tmpN->B, top_root_tile, simulateCount) ;
 					tmpN->win = tmpg.lose ;
 					tmpN->lose = tmpg.win ;
@@ -362,15 +340,15 @@ class OTP{
 
 	grade leaf_simulate(board B, bool my_tile, int simulateCount){
 		grade g ;
-		unsigned long long ML[64], *MLED(ML) ;
+		std::pair<int,int> ML[64], *MLED(ML) ;
 		int score ;
 
-		for( int t = 0 ; t < simulateCount ; t++ ){
+		for( int t = 0 ; t < simulateCount ; ++t ){
 			board tmpB = B ;
 			while(!tmpB.is_game_over()){
 				MLED = tmpB.get_valid_move(ML) ;
 				if( ML == MLED )
-					tmpB.update(0) ; // pass
+					tmpB.update(8,0) ; // pass
 				else 
 					tmpB.update(*random_choice(ML,MLED)) ;
 			}
@@ -397,8 +375,16 @@ class OTP{
 		return g ;
 	}
 
+	std::pair<int,int> SearchBestMove(board B){
+//			std::pair<int,int> ML[64], *MLED(root->B.get_valid_move(ML)) ;
+//			int nodeCount = MLED - ML ;
+//			for( int i = 0 ; i < nodeCount ; ++i){
+//		std::
+		return std::pair<int,int>(0,0) ;
+	}
+
 	int Search(board B, int alpha, int beta){
-		unsigned long long ML[64], *MLED(ML) ;
+		std::pair<int,int> ML[64], *MLED(ML) ;
 		bool my_tile = B.get_my_tile() ;
 
 		if( B.is_game_over() ){
@@ -420,11 +406,11 @@ class OTP{
 		int nodeCount = MLED - ML ;
 		if( nodeCount == 0 ){
 			board tmpB = B ;
-			tmpB.update(0) ; // pass
+			tmpB.update(8,0) ; // pass
 			return -Search(tmpB, -beta, -m) ;
 		}
 		else {
-			for(int i = 0 ; i < nodeCount ; i++){
+			for(int i = 0 ; i < nodeCount ; ++i){
 				board tmpB = B ;
 				tmpB.update(ML[i]) ;
 				int t = -Search(tmpB, -beta, -m) ;
@@ -439,7 +425,7 @@ class OTP{
 	}
 
 	bool no_valid_move(){
-		int ML[64], *MLED(B.get_valid_move(ML)) ;
+		std::pair<int,int> ML[64], *MLED(B.get_valid_move(ML)) ;
 		if( ML == MLED )
 			return true ;
 		else
@@ -476,9 +462,10 @@ class OTP{
 				return true;
 			}
 			case my_hash("genmove"):{
-				int xy = do_genmove();
-				int x = xy/8, y = xy%8;
-				do_play(x,y);
+				std::pair<int,int> xy = do_genmove();
+				int x = xy.first ;
+				int y = xy.second;
+				do_play(x, y);
 				B.show_board(myerr);
 				sprintf(out,"genmove %d %d",x,y);
 				fprintf(myerr,"\n") ;
@@ -489,21 +476,17 @@ class OTP{
 				sprintf(out,"undo");
 				return true;
 			case my_hash("validmove"):{
-				int xy[64], *xyED(xy) ;
-				xyED = do_validmove(xy) ;
-				if( xy == xyED ){
+				std::pair<int,int> ML[64], *MLED(ML), *pML(ML) ;
+				MLED = B.get_valid_move(ML) ;
+				if( pML == MLED ){
 					fprintf(myerr, "No valid move. Pass.\n") ;
 					sprintf(out,"validmove");
 					return true ;
 				}
-				int x ;
-				int y ;
 				do {
-					--xyED ;
-					x = *xyED/8 ;
-					y = *xyED%8 ;
-					fprintf(myerr, "(%d,%d) ", x, y) ;
-				}while(xy!=xyED) ;
+					fprintf(myerr, "(%d,%d) ", pML->first, pML->second) ;
+					++pML ;
+				}while(pML!=MLED) ;
 				fprintf(myerr, "\n") ;
 				sprintf(out,"validmove");
 				return true ;
@@ -521,9 +504,8 @@ class OTP{
 				sscanf(cmd,"%*s %d %d",&x,&y);
 				do_play(x,y);
 				if(B.is_game_over()==0){
-					int xy = do_genmove();
-					x = xy/8, y = xy%8;
-					do_play(x,y);
+					std::pair<int,int> xy = do_genmove();
+					do_play(xy.first, xy.second);
 				}
 				B.show_board(myerr);
 				sprintf(out,"playgen %d %d",x,y);

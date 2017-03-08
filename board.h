@@ -64,11 +64,10 @@ class board{
 		}
 	}
 
-	// Input: pos = the position of the update move (presented in bitboard)
-	void update(unsigned long long pos){
+	void update(int x, int y){
 		static std::pair<unsigned long long, unsigned long long>**** table = construct_update_table() ;
 
-		if( pos ){
+		if( x < 8 ){
 			unsigned long long *my_board, *op_board ;
 			if( my_tile ){
 				my_board = &white ;
@@ -81,10 +80,11 @@ class board{
 
 			unsigned long long origin_my = *my_board ;
 			unsigned long long origin_op = *op_board ;
-			*my_board |= pos ;
+	/*		unsigned long long pos = (1ULL<<(x*8+y)) ;
+	 		*my_board |= pos ;
 			*op_board &= ~pos ;
 
-	/*		unsigned long long p ;
+			unsigned long long p ;
 			unsigned char yp, ypos ;
 			unsigned long long tmp_my_board, tmp_op_board ;
 			ypos = 1<<(__builtin_ctzll(pos)%8) ;  // ypos = 1<<y
@@ -213,8 +213,6 @@ class board{
 				*op_board = tmp_op_board ;
 			}
 		*/
-			int x = __builtin_ctzll(pos)/8 ;
-			int y = __builtin_ctzll(pos)%8 ;
 		
 			const unsigned long long row_mask = 	0xFF ;
 			const unsigned long long col_mask = 	0x0101010101010101 ;
@@ -374,13 +372,9 @@ class board{
 		op_tile = tmp_tile ;
 	}
 
-	// Input: x = x-axis of the move 
-	// 	  y = y-axis of the move
-	void update(int x,int y){
-		if( x == 8 && y == 0 )
-			update(0) ;
-		else
-			update(1ULL<<(x*8+y)) ;
+	void update(std::pair<int,int> pos){
+		update(pos.first, pos.second) ;
+		return ;
 	}
 
 	std::pair<unsigned long long, unsigned long long>**** construct_update_table(){
@@ -518,10 +512,19 @@ class board{
 		op_tile = tmp_tile ;
 	}
 
-	bool is_valid_move_new(const int x, const int y){
+	bool is_valid_move(const int x, const int y){
 		static bool*** table = construct_valid_move_table() ;
 		static unsigned long long ones[] = {0, 1, 3, 7, 15, 31, 63, 127, 255} ;
-		
+
+		if( x == 8 && y == 0 ){ 
+			std::pair<int,int> b[64] ;
+			return b == get_valid_move(b) ;
+		}
+
+		unsigned long long pos = (1ULL<<(x*8+y)) ;
+		if( black & pos || white & pos )
+			return false ;
+
 		unsigned long long my_board, op_board ;
 		if( my_tile ){
 			my_board = white ;
@@ -694,181 +697,15 @@ class board{
 		return table ;
 	}
 	
-	// Input: pos = the position of the move (presented in bitboard)
-	// 	  ypos = the y-axis of the move (presented in bitboard)
-	bool is_valid_move(const unsigned long long pos, const unsigned char ypos){
-
-		if( black & pos || white & pos )
-			return false ;
-
-		if( pos ){
-			unsigned long long my_board, op_board ;
-			if( my_tile ){
-				my_board = white ;
-				op_board = black ;
+	std::pair<int,int>* get_valid_move(std::pair<int,int>* val){
+		for(int x = 0 ; x < 8 ; ++x){
+			for(int y = 0 ; y < 8 ; ++y){
+				if( is_valid_move(x, y) ){
+					*val = std::pair<int,int>(x,y) ;
+					++val ;
+				}
 			}
-			else {
-				my_board = black ;
-				op_board = white ;
-			}
-			my_board |= pos ;
-			op_board &= ~pos ;
-
-	//		unsigned long long p ;
-	//		unsigned char yp ;
-
-			// up
-//			p = pos>>8 ;
-//			if( op_board & p ){
-//				do{
-//					p = p>>8 ;
-//				}while( op_board & p ) ;
-//				if( my_board & p )
-//					return true ;
-//			}
-
-			// up right
-//			p = pos>>7 ;
-//			yp = ypos<<1 ;
-//			if( op_board & p && yp ){
-//				do {
-//					p = p>>7 ;
-//					yp = yp<<1 ;
-//				}while( op_board & p && yp ) ;
-//				if( my_board & p && yp )
-//					return true ;
-//			}
-
-			// right
-//			p = pos<<1 ;
-//			yp = ypos<<1 ;
-//			if( op_board & p && yp ){
-//				do {
-//					p = p<<1 ;
-//					yp = yp<<1 ;
-//				}while( op_board & p && yp ) ;
-//				if( my_board & p && yp )
-//					return true ;
-//			}
-	
-			// down right
-	//		p = pos<<9 ;
-	//		yp = ypos<<1 ;
-	//		if( op_board & p && yp ){
-	//			do {
-	//				p = p<<9 ;
-	//				yp = yp<<1 ;
-	//			}while( op_board & p && yp ) ;
-	//			if( my_board & p && yp )
-	//				return true ;
-	//		}
-			
-			// down
-//			p = pos<<8 ;
-//			if( op_board & p ){
-//				do {
-//					p = p<<8 ;
-//				}while( op_board & p ) ;
-//				if( my_board & p )
-//					return true ;
-//			}
-			
-			// down left
-//			p = pos<<7 ;
-//			yp = ypos>>1 ;
-//			if( op_board & p && yp ){
-//				do {
-//					p = p<<7 ;
-//					yp = yp>>1 ;
-//				}while( op_board & p && yp ) ;
-//				if( my_board & p && yp )
-//					return true ;
-//			}
-			
-			// left
-//			p = pos>>1 ;
-//			yp = ypos>>1 ;
-//			if( op_board & p && yp ){
-//				do {
-//					p = p>>1 ;
-//					yp = yp>>1 ;
-//				}while( op_board & p && yp ) ;
-//				if( my_board & p && yp )
-//					return true ;
-//			}
-			
-	//		// up left
-	//		p = pos>>9 ;
-	//		yp = ypos>>1 ;
-	//		if( op_board & p && yp ){
-	//			do {
-	//				p = p>>9 ;
-	//				yp = yp>>1 ;
-	//			}while( op_board & p && yp ) ;
-	//			if( my_board & p && yp )
-	//				return true ;
-	//		}
-
-			int ipos = __builtin_ctzll(pos) ;
-			int ixpos = ipos/8 ;
-			int iypos = ipos%8 ;
-			if( is_valid_move_new(ixpos, iypos) )
-				return true ;
 		}
-
-		return false ;
-	}
-
-	// Input: x = x-axis of the move 
-	// 	  y = y-axis of the move
-	bool is_valid_move_int(int x,int y){
-		if( x == 8 && y == 0 ){ 
-			unsigned long long b[64] ;
-			return b == get_valid_move(b) ;
-		}
-		else {
-			unsigned long long pos = 1ULL<<(x*8+y) ;
-			unsigned char ypos = 1<<y ;
-			return is_valid_move(pos, ypos) ;
-		}
-	}
-
-	// Input: val = the pointer of valid move array
-	unsigned long long* get_valid_move(unsigned long long* val){
-
-		unsigned long long p = 1 ;
-		unsigned char yp = 1 ;
-		do{
-			if( (~black & p || ~white & p) && is_valid_move(p, yp) ){
-				*val = p ;
-				++val ;
-			}
-
-			p = p<<1 ;
-			yp = yp<<1 ;
-			if(!yp)
-				yp = 1 ;
-		}while(p) ;
-
-		return val ;
-	}
-
-	// Input: val = the pointer of valid move array
-	int* get_valid_move(int* val){
-
-		unsigned long long p = 1 ;
-		unsigned char yp = 1 ;
-		do{
-			if( (~black & p || ~white & p) && is_valid_move(p, yp) ){
-				*val = __builtin_ctzll(p) ;
-				++val ;
-			}
-
-			p = p<<1 ;
-			yp = yp<<1 ;
-			if(!yp)
-				yp = 1 ;
-		}while(p) ;
 
 		return val ;
 	}
