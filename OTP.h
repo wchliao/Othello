@@ -13,7 +13,7 @@
 // parameters
 const double UCB_c = 0.8 ;
 const int simulateN = 100 ;
-const int searchDepth = 5 ;
+const int SearchDepth = 5 ;
 const int alarm_time = 3 ;
 
 // global flags
@@ -124,6 +124,16 @@ class OTP{
 			fprintf(stderr, "sigaction fail.\n") ;
 	}
 
+	// Randomly return a valid move
+/*	std::pair<int,int> do_ranplay(){
+		if( B.is_game_over() )
+			return std::pair<int,int>(8,0) ; // pass 
+		else {
+			std::pair<int,int> ML[64], *MLED(ML) ;
+			return *random_choice(ML,MLED) ;
+		}
+	}
+*/
 	//choose the best move in do_genmove
 	std::pair<int,int> do_genmove(){
 		struct itimerval time ;
@@ -178,8 +188,13 @@ class OTP{
 		bool my_tile = B.get_my_tile() ;
 		// Search
 		int depth = 64 - __builtin_popcountll(B.get_black() & B.get_white()) ;
-		if( depth < searchDepth )
-			return SearchBestMove(B) ;
+		if( depth < SearchDepth ){
+			fprintf(stderr, "Search: Start searching...\n") ;
+			std::pair<int,int>BestMove = SearchBestMove(B) ;
+			if( stopflag )
+				fprintf(stderr, "Search: Time Limit Exceed\n") ;
+			return BestMove ;
+		}
 
 		// Monte-Carlo
 		node *root = new node(B) ;
@@ -378,11 +393,13 @@ class OTP{
 	std::pair<int,int> SearchBestMove(board B){
 		std::pair<int,int> ML[64], *MLED(B.get_valid_move(ML)) ;
 		int nodeCount = MLED - ML ;
+		if( nodeCount == 0 )
+			return std::pair<int,int>(8,0) ; // pass
 			
 		const int beta = 1 ;
 		
-		std::pair<int,int> BestMove = std::pair<int,int>(8,0) ; // pass
-		int MaxScore = -100 ;
+		std::pair<int,int> BestMove = ML[0] ; 
+		int MaxScore = -1 ;
 
 		for( int i = 0 ; i < nodeCount ; ++i ){
 			board tmpB = B ;
@@ -400,10 +417,9 @@ class OTP{
 	}
 
 	int Search(board B, int alpha, int beta){
-		std::pair<int,int> ML[64], *MLED(ML) ;
-		bool my_tile = B.get_my_tile() ;
-
 		if( B.is_game_over() ){
+			bool my_tile = B.get_my_tile() ;
+			
 			int score = B.get_score() ;
 			if( score > 0 )
 				score = 1 ;
@@ -416,6 +432,7 @@ class OTP{
 				return score ;
 		}	
 
+		std::pair<int,int> ML[64], *MLED(ML) ;
 		int m = alpha ;
 
 		MLED = B.get_valid_move(ML) ;
@@ -477,7 +494,17 @@ class OTP{
 				fprintf(myerr,"\n") ;
 				return true;
 			}
-			case my_hash("genmove"):{
+/*			case my_hash("ranplay"):{
+				std::pair<int,int>xy = do_ranplay() ;
+				int x = xy.first ;
+				int y = xy.second ;
+				do_play(x, y) ;
+				B.show_board(myerr) ;
+				sprintf(out,"ranplay %d %d",x,y);
+				fprintf(myerr,"\n") ;
+				return true;
+			}
+*/			case my_hash("genmove"):{
 				std::pair<int,int> xy = do_genmove();
 				int x = xy.first ;
 				int y = xy.second;
