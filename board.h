@@ -80,7 +80,7 @@ class board{
 
 			unsigned long long origin_my = *my_board ;
 			unsigned long long origin_op = *op_board ;
-	/*		unsigned long long pos = (1ULL<<(x*8+y)) ;
+/*			unsigned long long pos = (1ULL<<(x*8+y)) ;
 	 		*my_board |= pos ;
 			*op_board &= ~pos ;
 
@@ -213,12 +213,11 @@ class board{
 				*op_board = tmp_op_board ;
 			}
 		*/
-		
 			const unsigned long long row_mask = 	0xFF ;
 			const unsigned long long col_mask = 	0x0101010101010101 ;
 			const unsigned long long mplus_mask = 	0x0102040810204080 ;
 			const unsigned long long mminus_mask = 	0x8040201008040201 ;
-			static unsigned long long col_ones[] = {0, 0x0101010101010101, 
+			static const unsigned long long col_ones[] = {0, 0x0101010101010101, 
 				0x0303030303030303, 0x0707070707070707, 0x0F0F0F0F0F0F0F0F,
 				0x1F1F1F1F1F1F1F1F, 0x3F3F3F3F3F3F3F3F, 0x7F7F7F7F7F7F7F7F,
 				0xFFFFFFFFFFFFFFFF } ;
@@ -513,8 +512,8 @@ class board{
 	}
 
 	bool is_valid_move(const int x, const int y){
-		static bool*** table = construct_valid_move_table() ;
-		static unsigned long long ones[] = {0, 1, 3, 7, 15, 31, 63, 127, 255} ;
+		static bool*** table = construct_is_valid_move_table() ;
+		static const unsigned long long ones[] = {0, 1, 3, 7, 15, 31, 63, 127, 255} ;
 
 		if( x == 8 && y == 0 ){ 
 			std::pair<int,int> b[64] ;
@@ -648,7 +647,7 @@ class board{
 		return false ;
 	}
 
-	bool*** construct_valid_move_table(){
+	bool*** construct_is_valid_move_table(){
 		bool*** table = new bool**[256] ;
 		for(int i = 0 ; i < 256 ; i++){
 			table[i] = new bool*[256] ;
@@ -710,6 +709,18 @@ class board{
 		return val ;
 	}
 
+/*	unsigned char*** construct_get_valid_move_table(){
+		std::pair<unsigned long long, unsigned long long>**** table = new std::pair<unsigned long long,unsigned long long>***[4] ;
+		for(int i = 0 ; i < 4 ; i++){
+			table[i] = new std::pair<unsigned long long,unsigned long long>**[256] ;
+			for(int j = 0 ; j < 256 ; j++){
+				table[i][j] = new std::pair<unsigned long long,unsigned long long>*[256] ;
+				for(int k = 0 ; k < 256 ; k++)
+					table[i][j][k] = new std::pair<unsigned long long,unsigned long long>[8] ;
+			}
+		}
+	}
+*/
 	void show_board(FILE*fp)const{
 		static constexpr char c[]{'.','X','O'};
 		if(my_tile)
