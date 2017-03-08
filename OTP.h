@@ -177,9 +177,9 @@ class OTP{
 
 		bool my_tile = B.get_my_tile() ;
 		// Search
-//		int depth = 64 - __builtin_popcountll(B.get_black() & B.get_white()) ;
-//		if( depth < searchDepth )
-//			return SearchBestMove(B) ;
+		int depth = 64 - __builtin_popcountll(B.get_black() & B.get_white()) ;
+		if( depth < searchDepth )
+			return SearchBestMove(B) ;
 
 		// Monte-Carlo
 		node *root = new node(B) ;
@@ -376,11 +376,27 @@ class OTP{
 	}
 
 	std::pair<int,int> SearchBestMove(board B){
-//			std::pair<int,int> ML[64], *MLED(root->B.get_valid_move(ML)) ;
-//			int nodeCount = MLED - ML ;
-//			for( int i = 0 ; i < nodeCount ; ++i){
-//		std::
-		return std::pair<int,int>(0,0) ;
+		std::pair<int,int> ML[64], *MLED(B.get_valid_move(ML)) ;
+		int nodeCount = MLED - ML ;
+			
+		const int beta = 1 ;
+		
+		std::pair<int,int> BestMove = std::pair<int,int>(8,0) ; // pass
+		int MaxScore = -100 ;
+
+		for( int i = 0 ; i < nodeCount ; ++i ){
+			board tmpB = B ;
+			tmpB.update(ML[i]) ;
+			int t = -Search(B, -beta, -MaxScore) ;
+			if( t > MaxScore ){
+				MaxScore = t ;
+				BestMove = ML[i] ;
+			}
+			if( MaxScore >= beta )
+				break ;
+		}
+
+		return BestMove ;
 	}
 
 	int Search(board B, int alpha, int beta){
@@ -416,7 +432,7 @@ class OTP{
 				int t = -Search(tmpB, -beta, -m) ;
 				if( t > m )
 					m = t ;
-				if( m >= t )
+				if( m >= beta )
 					return m ;
 			}
 		}
