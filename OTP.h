@@ -54,10 +54,10 @@ struct node {
 	int win ;
 	int lose ;
 	int draw ;
-	std::pair<int,int> pos ;
 	double winrate ;
 	double pot ;
 	board B ;
+	std::pair<int,int> pos ;
 
 	int simulateCount ;
 
@@ -66,13 +66,13 @@ struct node {
 	struct node *next ;
 
 	constexpr node(): 
-	win(0), lose(0), draw(0), pos(), winrate(0), pot(0), 
-	B(), simulateCount(0),
+	win(0), lose(0), draw(0), winrate(0), pot(0), 
+	B(), pos(), simulateCount(0),
 	childCount(0), child(NULL), next(NULL) {}
 
 	constexpr node(board _B): 
-	win(0), lose(0), draw(0), pos(), winrate(0), pot(0), 
-	B(_B), simulateCount(0), 
+	win(0), lose(0), draw(0), winrate(0), pot(0), 
+	B(_B), pos(), simulateCount(0), 
 	childCount(0), child(NULL), next(NULL) {}
 } ;
 
@@ -125,15 +125,15 @@ class OTP{
 	}
 
 	// Randomly return a valid move
-/*	std::pair<int,int> do_ranplay(){
+	std::pair<int,int> do_ranplay(){
 		if( B.is_game_over() )
 			return std::pair<int,int>(8,0) ; // pass 
 		else {
-			std::pair<int,int> ML[64], *MLED(ML) ;
+			std::pair<int,int> ML[64], *MLED(B.get_valid_move(ML)) ;
 			return *random_choice(ML,MLED) ;
 		}
 	}
-*/
+
 	//choose the best move in do_genmove
 	std::pair<int,int> do_genmove(){
 		struct itimerval time ;
@@ -187,14 +187,14 @@ class OTP{
 
 		bool my_tile = B.get_my_tile() ;
 		// Search
-		int depth = 64 - __builtin_popcountll(B.get_black() & B.get_white()) ;
-		if( depth < SearchDepth ){
-			fprintf(stderr, "Search: Start searching...\n") ;
-			std::pair<int,int>BestMove = SearchBestMove(B) ;
-			if( stopflag )
-				fprintf(stderr, "Search: Time Limit Exceed\n") ;
-			return BestMove ;
-		}
+//		int depth = 64 - __builtin_popcountll(B.get_black() | B.get_white()) ;
+//		if( depth < SearchDepth ){
+//			fprintf(stderr, "Search: Start searching...\n") ;
+//			std::pair<int,int>BestMove = SearchBestMove(B) ;
+//			if( stopflag )
+//				fprintf(stderr, "Search: Time Limit Exceed\n") ;
+//			return BestMove ;
+//		}
 
 		// Monte-Carlo
 		node *root = new node(B) ;
@@ -237,8 +237,8 @@ class OTP{
 					g.draw = simulateN ;
 			}
 			g.simulateCount = simulateN ;
+			root->simulateCount += g.simulateCount ;
 			totalsim += simulateN ;
-			root->simulateCount += g.simulateCount ; 
 			return g ;
 		}
 		
@@ -494,7 +494,7 @@ class OTP{
 				fprintf(myerr,"\n") ;
 				return true;
 			}
-/*			case my_hash("ranplay"):{
+			case my_hash("ranplay"):{
 				std::pair<int,int>xy = do_ranplay() ;
 				int x = xy.first ;
 				int y = xy.second ;
@@ -504,7 +504,7 @@ class OTP{
 				fprintf(myerr,"\n") ;
 				return true;
 			}
-*/			case my_hash("genmove"):{
+			case my_hash("genmove"):{
 				std::pair<int,int> xy = do_genmove();
 				int x = xy.first ;
 				int y = xy.second;
