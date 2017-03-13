@@ -5,6 +5,7 @@
 #include<utility>
 #include<algorithm>
 #include<iostream>
+#include "table.h"
 
 const bool BLACK = false ;
 const bool WHITE = true ;
@@ -65,7 +66,7 @@ class board{
 	}
 
 	void update(int x, int y){
-		static std::pair<unsigned long long, unsigned long long>**** table = construct_update_table() ;
+		static UpdateTable table = UpdateTable() ;
 
 		if( x < 8 ){
 			unsigned long long *my_board, *op_board ;
@@ -80,158 +81,26 @@ class board{
 
 			unsigned long long origin_my = *my_board ;
 			unsigned long long origin_op = *op_board ;
-/*			unsigned long long pos = (1ULL<<(x*8+y)) ;
-	 		*my_board |= pos ;
-			*op_board &= ~pos ;
-
-			unsigned long long p ;
-			unsigned char yp, ypos ;
-			unsigned long long tmp_my_board, tmp_op_board ;
-			ypos = 1<<(__builtin_ctzll(pos)%8) ;  // ypos = 1<<y
-
-			// up
-			p = pos ;
-			tmp_my_board = *my_board ;
-			tmp_op_board = *op_board ;
-			do{
-				tmp_my_board |= p ;
-				tmp_op_board &= ~p ;
-				p = p>>8 ;
-			}while( *op_board & p ) ;
-			if( *my_board & p ){
-				*my_board = tmp_my_board ;
-				*op_board = tmp_op_board ;
-			}
-
-			// up right
-			p = pos ;
-			yp = ypos ;
-			tmp_my_board = *my_board ;
-			tmp_op_board = *op_board ;
-			do {
-				tmp_my_board |= p ;
-				tmp_op_board &= ~p ;
-				p = p>>7 ;
-				yp = yp<<1 ;
-			}while( *op_board & p && yp ) ;
-			if( *my_board & p && yp ){
-				*my_board = tmp_my_board ;
-				*op_board = tmp_op_board ;
-			}
-
-			// right
-			p = pos ;
-			yp = ypos ;
-			tmp_my_board = *my_board ;
-			tmp_op_board = *op_board ;
-			do {
-				tmp_my_board |= p ;
-				tmp_op_board &= ~p ;
-				p = p<<1 ;
-				yp = yp<<1 ;
-			}while( *op_board & p && yp ) ;
-			if( *my_board & p && yp ){
-				*my_board = tmp_my_board ;
-				*op_board = tmp_op_board ;
-			}
-	
-			// down right
-			p = pos ;
-			yp = ypos ;
-			tmp_my_board = *my_board ;
-			tmp_op_board = *op_board ;
-			do {
-				tmp_my_board |= p ;
-				tmp_op_board &= ~p ;
-				p = p<<9 ;
-				yp = yp<<1 ;
-			}while( *op_board & p && yp ) ;
-			if( *my_board & p && yp ){
-				*my_board = tmp_my_board ;
-				*op_board = tmp_op_board ;
-			}
 			
-			// down
-			p = pos ;
-			tmp_my_board = *my_board ;
-			tmp_op_board = *op_board ;
-			do {
-				tmp_my_board |= p ;
-				tmp_op_board &= ~p ;
-				p = p<<8 ;
-			}while( *op_board & p ) ;
-			if( *my_board & p ){
-				*my_board = tmp_my_board ;
-				*op_board = tmp_op_board ;
-			}
-			
-			// down left
-			p = pos ;
-			yp = ypos ;
-			tmp_my_board = *my_board ;
-			tmp_op_board = *op_board ;
-			do {
-				tmp_my_board |= p ;
-				tmp_op_board &= ~p ;
-				p = p<<7 ;
-				yp = yp>>1 ;
-			}while( *op_board & p && yp ) ;
-			if( *my_board & p && yp ){
-				*my_board = tmp_my_board ;
-				*op_board = tmp_op_board ;
-			}			
-			
-			// left
-			p = pos ;
-			yp = ypos ;
-			tmp_my_board = *my_board ;
-			tmp_op_board = *op_board ;
-			do {
-				tmp_my_board |= p ;
-				tmp_op_board &= ~p ;
-				p = p>>1 ;
-				yp = yp>>1 ;
-			}while( *op_board & p && yp ) ;
-			if( *my_board & p && yp ){
-				*my_board = tmp_my_board ;
-				*op_board = tmp_op_board ;
-			}
-			
-			// up left
-			p = pos ;
-			yp = ypos ;
-			tmp_my_board = *my_board ;
-			tmp_op_board = *op_board ;
-			do {
-				tmp_my_board |= p ;
-				tmp_op_board &= ~p ;
-				p = p>>9 ;
-				yp = yp>>1 ;
-			}while( *op_board & p && yp ) ;
-			if( *my_board & p && yp ){
-				*my_board = tmp_my_board ;
-				*op_board = tmp_op_board ;
-			}
-		*/
-			const unsigned long long row_mask = 	0xFF ;
-			const unsigned long long col_mask = 	0x0101010101010101 ;
-			const unsigned long long mplus_mask = 	0x0102040810204080 ;
-			const unsigned long long mminus_mask = 	0x8040201008040201 ;
+			static const unsigned long long row_mask = 	0xFF ;
+			static const unsigned long long col_mask = 	0x0101010101010101 ;
+			static const unsigned long long mplus_mask = 	0x0102040810204080 ;
+			static const unsigned long long mminus_mask = 	0x8040201008040201 ;
 			static const unsigned long long col_ones[] = {0, 0x0101010101010101, 
 				0x0303030303030303, 0x0707070707070707, 0x0F0F0F0F0F0F0F0F,
 				0x1F1F1F1F1F1F1F1F, 0x3F3F3F3F3F3F3F3F, 0x7F7F7F7F7F7F7F7F,
 				0xFFFFFFFFFFFFFFFF } ;
 
-			const unsigned long long col_magic = mplus_mask ;
-			const unsigned long long m_magic = col_mask ;
+			static const unsigned long long col_magic = mplus_mask ;
+			static const unsigned long long m_magic = col_mask ;
 	
 			// Update row
 			int shift = x<<3 ;
 			unsigned long long my = (origin_my>>shift)&row_mask ;
 			unsigned long long op = (origin_op>>shift)&row_mask ;
 
-			unsigned long long update_my = table[0][my][op][y].first ;
-			unsigned long long update_op = table[0][my][op][y].second ;
+			unsigned long long update_my = table.get_value(0, my, op, y).first ;
+			unsigned long long update_op = table.get_value(0, my, op, y).second ;
 			
 			*my_board = *my_board & ~(row_mask<<shift) ;
 			*my_board = *my_board | (update_my<<shift) ;
@@ -251,8 +120,8 @@ class board{
 			op = op>>56 ;
 			op = op & row_mask ;
 
-			update_my = table[1][my][op][x].first ;
-			update_op = table[1][my][op][x].second ;
+			update_my = table.get_value(1, my, op, x).first ;
+			update_op = table.get_value(1, my, op, x).second ;
 		
 			*my_board = *my_board & ~(col_mask<<y) ;
 			*my_board = *my_board | (update_my<<y) ;
@@ -275,8 +144,8 @@ class board{
 				op = op>>56 ;
 				op = op & row_mask ;
 
-				update_my = table[2][my][op][y].first ;
-				update_op = table[2][my][op][y].second ;
+				update_my = table.get_value(2, my, op, y).first ;
+				update_op = table.get_value(2, my, op, y).second ;
 		
 				*my_board = *my_board & ~(mplus_mask<<shift) ;
 				*my_board = *my_board | (update_my<<shift) ;
@@ -300,8 +169,8 @@ class board{
 				op = op & ~col_ones[shift] ;
 				op = op & row_mask ;
 
-				update_my = table[2][my][op][y+shift].first ;
-				update_op = table[2][my][op][y+shift].second ;
+				update_my = table.get_value(2, my, op, y+shift).first ;
+				update_op = table.get_value(2, my, op, y+shift).second ;
 		
 				*my_board = *my_board & ~((mplus_mask & ~col_ones[shift])>>shift) ;
 				*my_board = *my_board | (update_my>>shift) ;
@@ -325,8 +194,8 @@ class board{
 				op = op>>56 ;
 				op = op & row_mask ;
 
-				update_my = table[3][my][op][y].first ;
-				update_op = table[3][my][op][y].second ;
+				update_my = table.get_value(3, my, op, y).first ;
+				update_op = table.get_value(3, my, op, y).second ;
 		
 				*my_board = *my_board & ~(mminus_mask>>shift) ;
 				*my_board = *my_board | (update_my>>shift) ;
@@ -350,8 +219,8 @@ class board{
 				op = op & ~col_ones[shift] ;
 				op = op & row_mask ;
 
-				update_my = table[3][my][op][y+shift].first ;
-				update_op = table[3][my][op][y+shift].second ;
+				update_my = table.get_value(3, my, op, y+shift).first ;
+				update_op = table.get_value(3, my, op, y+shift).second ;
 		
 				*my_board = *my_board & ~((mminus_mask & ~col_ones[shift])>>shift) ;
 				*my_board = *my_board | (update_my>>shift) ;
@@ -376,127 +245,6 @@ class board{
 		return ;
 	}
 
-	std::pair<unsigned long long, unsigned long long>**** construct_update_table(){
-		std::pair<unsigned long long, unsigned long long>**** table = new std::pair<unsigned long long,unsigned long long>***[4] ;
-		for(int i = 0 ; i < 4 ; i++){
-			table[i] = new std::pair<unsigned long long,unsigned long long>**[256] ;
-			for(int j = 0 ; j < 256 ; j++){
-				table[i][j] = new std::pair<unsigned long long,unsigned long long>*[256] ;
-				for(int k = 0 ; k < 256 ; k++)
-					table[i][j][k] = new std::pair<unsigned long long,unsigned long long>[8] ;
-			}
-		}
-		// table's structure: table[line][my][op][p]
-
-		// Row's look-up table
-		for(int my = 0 ; my < 256 ; ++my){
-			for(int op = 0 ; op < 256 ; ++op){
-				unsigned long long pos = 1 ;
-				for(int p = 0 ; p < 8 ; ++p, pos = pos<<1){
-
-					table[0][my][op][p] = std::pair<unsigned long long,unsigned long long>(my|pos,op&~pos) ;
-
-					if( (my&op) || (my&pos) || (op&pos) )
-						continue ;
-
-					// right
-					unsigned long long tmppos = pos<<1 ;
-					unsigned char y = pos<<1 ;
-					unsigned long long tmp_my = table[0][my][op][p].first ;
-					unsigned long long tmp_op = table[0][my][op][p].second ;
-					while( op & tmppos & y ){
-						tmp_my |= tmppos ;
-						tmp_op &= ~tmppos ;
-						tmppos = tmppos<<1 ;
-						y = y<<1 ;
-					}
-					if( my & tmppos & y ){
-						table[0][my][op][p].first = tmp_my ;
-						table[0][my][op][p].second = tmp_op ;
-					}
-		
-					// left
-					tmppos = pos>>1 ;
-					y = pos>>1 ;
-					tmp_my = table[0][my][op][p].first ;
-					tmp_op = table[0][my][op][p].second ;
-					while( op & tmppos & y ){
-						tmp_my |= tmppos ;
-						tmp_op &= ~tmppos ;
-						tmppos = tmppos>>1 ;
-						y = y>>1 ;
-					}
-					if( my & tmppos & y ){
-						table[0][my][op][p].first = tmp_my ;
-						table[0][my][op][p].second = tmp_op ;
-					}
-				}
-			}
-		}
-
-		// Column's look-up table
-		for(int my = 0 ; my < 256 ; ++my){
-			for(int op = 0 ; op < 256 ; ++op){
-				for(int p = 0 ; p < 8 ; ++p){
-					unsigned long long row_my = table[0][my][op][p].first ;
-					unsigned long long row_op = table[0][my][op][p].second ;
-					unsigned long long tmp_my = 0 ;
-					unsigned long long tmp_op = 0 ;
-					const unsigned long long mask = 1 ;
-
-					for(int y = 0 ; y < 8 ; y++){
-						tmp_my |= (((row_my>>y)&mask)<<(y<<3)) ;
-						tmp_op |= (((row_op>>y)&mask)<<(y<<3)) ;
-					}
-
-					table[1][my][op][p] = std::pair<unsigned long long,unsigned long long>(tmp_my,tmp_op) ;
-				}
-			}
-		}		
-
-		// Mpuls's look-up table
-		for(int my = 0 ; my < 256 ; ++my){
-			for(int op = 0 ; op < 256 ; ++op){
-				for(int p = 0 ; p < 8 ; ++p){
-					unsigned long long row_my = table[0][my][op][p].first ;
-					unsigned long long row_op = table[0][my][op][p].second ;
-					unsigned long long tmp_my = 0 ;
-					unsigned long long tmp_op = 0 ;
-					const unsigned long long mask = 1 ;
-
-					for(int y = 0 ; y < 8 ; y++){
-						tmp_my |= (((row_my>>y)&mask)<<(((7-y)<<3)+y)) ;
-						tmp_op |= (((row_op>>y)&mask)<<(((7-y)<<3)+y)) ;
-					}
-
-					table[2][my][op][p] = std::pair<unsigned long long,unsigned long long>(tmp_my,tmp_op) ;
-				}
-			}
-		}		
-
-		// Mminus's look-up table
-		for(int my = 0 ; my < 256 ; ++my){
-			for(int op = 0 ; op < 256 ; ++op){
-				for(int p = 0 ; p < 8 ; ++p){
-					unsigned long long row_my = table[0][my][op][p].first ;
-					unsigned long long row_op = table[0][my][op][p].second ;
-					unsigned long long tmp_my = 0 ;
-					unsigned long long tmp_op = 0 ;
-					const unsigned long long mask = 1 ;
-
-					for(int y = 0 ; y < 8 ; y++){
-						tmp_my |= (((row_my>>y)&mask)<<(y*9)) ;
-						tmp_op |= (((row_op>>y)&mask)<<(y*9)) ;
-					}
-
-					table[3][my][op][p] = std::pair<unsigned long long,unsigned long long>(tmp_my,tmp_op) ;
-				}
-			}
-		}		
-
-		return table ;
-	}
-
 	// Input: b = black board
 	// 	  w = white board
 	// 	  _pass = whether this time is pass or not
@@ -512,8 +260,8 @@ class board{
 	}
 
 	bool is_valid_move(const int x, const int y){
-		static bool*** table = construct_is_valid_move_table() ;
-		static const unsigned long long ones[] = {0, 1, 3, 7, 15, 31, 63, 127, 255} ;
+		static IsValidTable table = IsValidTable() ;
+		const unsigned long long ones[] = {0, 1, 3, 7, 15, 31, 63, 127, 255} ;
 
 		if( x == 8 && y == 0 ){ 
 			std::pair<int,int> b[64] ;
@@ -546,7 +294,7 @@ class board{
 		int shift = x<<3 ; // x*8
 		unsigned long long my = (my_board>>shift)&row_mask ;
 		unsigned long long op = (op_board>>shift)&row_mask ;
-		if( table[my][op][y] )
+		if( table.get_value(my, op, y) )
 			return true ;
 		
 		// Check column
@@ -562,7 +310,7 @@ class board{
 		op = op>>56 ;
 		op = op & row_mask ;
 
-		if( table[my][op][x] )
+		if( table.get_value(my, op, x) )
 			return true ;
 		
 		// Check slope where m > 0
@@ -581,7 +329,7 @@ class board{
 			op = op>>56 ;
 			op = op & row_mask ;
 
-			if( table[my][op][y] )
+			if( table.get_value(my, op, y) )
 				return true ;
 		}
 		else {
@@ -601,7 +349,7 @@ class board{
 			op = op & ~ones[shift] ;
 			op = op & row_mask ;
 
-			if( table[my][op][y+shift] )
+			if( table.get_value(my, op, y+shift) )
 				return true ;
 		}
 		
@@ -621,7 +369,7 @@ class board{
 			op = op>>56 ;
 			op = op & row_mask ;
 
-			if( table[my][op][y] )
+			if( table.get_value(my, op, y) )
 				return true ;
 		}
 		else {
@@ -641,61 +389,12 @@ class board{
 			op = op & ~ones[shift] ;
 			op = op & row_mask ;
 
-			if( table[my][op][y+shift] )
+			if( table.get_value(my, op, y+shift) )
 				return true ;
 		}
 		return false ;
 	}
 
-	bool*** construct_is_valid_move_table(){
-		bool*** table = new bool**[256] ;
-		for(int i = 0 ; i < 256 ; i++){
-			table[i] = new bool*[256] ;
-			for(int j = 0 ; j < 256 ; j++)
-				table[i][j] = new bool[8] ;
-		}
-		// table's structure: table[my][op][p]
-
-		for(int my = 0 ; my < 256 ; ++my){
-			for(int op = 0 ; op < 256 ; ++op){
-				unsigned char pos = 1 ;
-				for(int p = 0 ; p < 8 ; ++p, pos = pos<<1){
-
-					table[my][op][p] = false ;
-
-					if( (my&op) || (my&pos) || (op&pos) )
-						continue ;
-
-					// right
-					unsigned char tmppos = pos<<1 ;
-					if( op & tmppos ){
-						do {
-							tmppos = tmppos<<1 ;
-						}while( op & tmppos ) ;
-						if( my & tmppos ){
-							table[my][op][p] = true ;
-							continue ;
-						}
-					}
-		
-					// left
-					tmppos = pos>>1 ;
-					if( op & tmppos ){
-						do {
-							tmppos = tmppos>>1 ;
-						}while( op & tmppos ) ;
-						if( my & tmppos ){
-							table[my][op][p] = true ;
-							continue ;
-						}
-					}
-				}
-			}
-		}
-
-		return table ;
-	}
-	
 	std::pair<int,int>* get_valid_move(std::pair<int,int>* val){
 		for(int x = 0 ; x < 8 ; ++x){
 			for(int y = 0 ; y < 8 ; ++y){
@@ -709,18 +408,6 @@ class board{
 		return val ;
 	}
 
-/*	unsigned char*** construct_get_valid_move_table(){
-		std::pair<unsigned long long, unsigned long long>**** table = new std::pair<unsigned long long,unsigned long long>***[4] ;
-		for(int i = 0 ; i < 4 ; i++){
-			table[i] = new std::pair<unsigned long long,unsigned long long>**[256] ;
-			for(int j = 0 ; j < 256 ; j++){
-				table[i][j] = new std::pair<unsigned long long,unsigned long long>*[256] ;
-				for(int k = 0 ; k < 256 ; k++)
-					table[i][j][k] = new std::pair<unsigned long long,unsigned long long>[8] ;
-			}
-		}
-	}
-*/
 	void show_board(FILE*fp)const{
 		static constexpr char c[]{'.','X','O'};
 		if(my_tile)
@@ -751,11 +438,11 @@ class board{
 		fflush(fp);
 	}
 
-	std::pair<int,int> get_count()const{
+	inline std::pair<int,int> get_count()const{
 		return std::pair<int,int>(__builtin_popcountll(black), __builtin_popcountll(white));
 	}
 
-	int get_score()const{
+	inline int get_score()const{
 		return __builtin_popcountll(black) - __builtin_popcountll(white) ;
 	}
 
@@ -774,15 +461,15 @@ class board{
 		return white ;
 	}
 
-	int get_pass()const{
+	inline int get_pass()const{
 		return pass;
 	}
 
-	bool get_my_tile()const{
+	inline bool get_my_tile()const{
 		return my_tile;
 	}
 
-	bool is_game_over()const{
+	inline bool is_game_over()const{
 		return pass==2;
 	}
 };
