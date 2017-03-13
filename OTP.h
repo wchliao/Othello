@@ -54,25 +54,25 @@ struct node {
 	int win ;
 	int lose ;
 	int draw ;
+	int simulateCount ;
 	double winrate ;
 	double pot ;
+
 	board B ;
 	std::pair<int,int> pos ;
-
-	int simulateCount ;
 
 	int childCount ;
 	struct node *child ;
 	struct node *next ;
 
 	constexpr node(): 
-	win(0), lose(0), draw(0), winrate(0), pot(0), 
-	B(), pos(), simulateCount(0),
+	win(0), lose(0), draw(0), simulateCount(0), 
+	winrate(0), pot(0), B(), pos(),
 	childCount(0), child(NULL), next(NULL) {}
 
 	constexpr node(board _B): 
-	win(0), lose(0), draw(0), winrate(0), pot(0), 
-	B(_B), pos(), simulateCount(0), 
+	win(0), lose(0), draw(0), simulateCount(0), 
+	winrate(0), pot(0), B(_B), pos(),  
 	childCount(0), child(NULL), next(NULL) {}
 } ;
 
@@ -215,6 +215,7 @@ class OTP{
 		return maxN->pos ;
 	}
 
+	// All information is updated at child level
 	grade root_simulate(node *root, bool my_tile, bool top_root_tile){
 		grade g ;
 
@@ -225,7 +226,7 @@ class OTP{
 					g.lose = simulateN ;
 				else if( score < 0 )
 					g.win = simulateN ;
-				else
+				else 
 					g.draw = simulateN ;
 			}
 			else {
@@ -233,11 +234,10 @@ class OTP{
 					g.win = simulateN ;
 				else if( score < 0 )
 					g.lose = simulateN;
-				else
+				else 
 					g.draw = simulateN ;
 			}
 			g.simulateCount = simulateN ;
-			root->simulateCount += g.simulateCount ;
 			totalsim += simulateN ;
 			return g ;
 		}
@@ -258,13 +258,13 @@ class OTP{
 			if( my_tile == top_root_tile ){
 				maxN->win += g.win ;
 				maxN->lose += g.lose ;
-				maxN->draw += g.draw ;
 			}
 			else {
 				maxN->win += g.lose ;
 				maxN->lose += g.win ;
-				maxN->draw += g.draw ;
 			}
+			maxN->draw += g.draw ;
+			maxN->simulateCount += g.simulateCount ;
 			maxN->winrate = double(maxN->win)/maxN->simulateCount ;
 			maxN->pot *= sqrt((double)(maxN->simulateCount - g.simulateCount) / maxN->simulateCount) ;
 			
@@ -346,14 +346,13 @@ class OTP{
 			}
 
 			g.simulateCount = simulateCount*nodeCount ;
-			root->simulateCount += g.simulateCount ;
 		}
 
 		// Back propagation
 		return g ;
 	}
 
-	grade leaf_simulate(board B, bool my_tile, int simulateCount){
+	grade leaf_simulate(board B, bool top_root_tile, int simulateCount){
 		grade g ;
 		std::pair<int,int> ML[64], *MLED(ML) ;
 		int score ;
@@ -368,7 +367,7 @@ class OTP{
 					tmpB.update(*random_choice(ML,MLED)) ;
 			}
 			score = tmpB.get_score() ;
-			if( my_tile ){
+			if( top_root_tile ){
 				if( score > 0 )
 					++g.lose ;
 				else if( score < 0 )
