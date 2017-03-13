@@ -442,6 +442,10 @@ class board{
 		return std::pair<int,int>(__builtin_popcountll(black), __builtin_popcountll(white));
 	}
 
+	inline int get_my_score()const{
+		return (my_tile? (__builtin_popcountll(white) - __builtin_popcountll(black)) : (__builtin_popcountll(black) - __builtin_popcount(white))) ;
+	}
+
 	inline int get_score()const{
 		return __builtin_popcountll(black) - __builtin_popcountll(white) ;
 	}

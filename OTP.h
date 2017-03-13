@@ -417,18 +417,13 @@ class OTP{
 
 	int Search(board B, int alpha, int beta){
 		if( B.is_game_over() ){
-			bool my_tile = B.get_my_tile() ;
-			
-			int score = B.get_score() ;
+			int score = B.get_my_score() ;
 			if( score > 0 )
-				score = 1 ;
+				return 1 ;
 			else if( score < 0 )
-				score = -1 ;
-
-			if( my_tile )
-				return -score ;
-			else 
-				return score ;
+				return -1 ;
+			else
+				return 0 ;
 		}	
 
 		std::pair<int,int> ML[64], *MLED(ML) ;
