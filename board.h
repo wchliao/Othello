@@ -112,13 +112,11 @@ class board{
 			my = my & col_mask ;
 			my = my * col_magic ;
 			my = my>>56 ;
-			my = my & row_mask ;
 
 			op = origin_op>>y ;
 			op = op & col_mask ;
 			op = op * col_magic ;
 			op = op>>56 ;
-			op = op & row_mask ;
 
 			update_my = table.get_value(1, my, op, x).first ;
 			update_op = table.get_value(1, my, op, x).second ;
@@ -136,13 +134,11 @@ class board{
 				my = my & mplus_mask ;
 				my = my * m_magic ;
 				my = my>>56 ;
-				my = my & row_mask ;
 
 				op = origin_op>>shift ;
 				op = op & mplus_mask ;
 				op = op * m_magic ;
 				op = op>>56 ;
-				op = op & row_mask ;
 
 				update_my = table.get_value(2, my, op, y).first ;
 				update_op = table.get_value(2, my, op, y).second ;
@@ -160,14 +156,12 @@ class board{
 				my = my * m_magic ;
 				my = my>>56 ;
 				my = my & ~col_ones[shift] ;
-				my = my & row_mask ;
 
 				op = origin_op<<shift ;
 				op = op & mplus_mask ;
 				op = op * m_magic ;
 				op = op>>56 ;
 				op = op & ~col_ones[shift] ;
-				op = op & row_mask ;
 
 				update_my = table.get_value(2, my, op, y+shift).first ;
 				update_op = table.get_value(2, my, op, y+shift).second ;
@@ -186,13 +180,11 @@ class board{
 				my = my & mminus_mask ;
 				my = my * m_magic ;
 				my = my>>56 ;
-				my = my & row_mask ;
 
 				op = origin_op<<shift ;
 				op = op & mminus_mask ;
 				op = op * m_magic ;
 				op = op>>56 ;
-				op = op & row_mask ;
 
 				update_my = table.get_value(3, my, op, y).first ;
 				update_op = table.get_value(3, my, op, y).second ;
@@ -210,14 +202,12 @@ class board{
 				my = my * m_magic ;
 				my = my>>56 ;
 				my = my & ~col_ones[shift] ;
-				my = my & row_mask ;
 
 				op = origin_op<<shift ;
 				op = op & mminus_mask ;
 				op = op * m_magic ;
 				op = op>>56 ;
 				op = op & ~col_ones[shift] ;
-				op = op & row_mask ;
 
 				update_my = table.get_value(3, my, op, y+shift).first ;
 				update_op = table.get_value(3, my, op, y+shift).second ;
@@ -302,13 +292,11 @@ class board{
 		my = my & col_mask ;
 		my = my * col_magic ;
 		my = my>>56 ;
-		my = my & row_mask ;
 
 		op = op_board>>y ;
 		op = op & col_mask ;
 		op = op * col_magic ;
 		op = op>>56 ;
-		op = op & row_mask ;
 
 		if( table.get_value(my, op, x) )
 			return true ;
@@ -321,13 +309,11 @@ class board{
 			my = my & mplus_mask ;
 			my = my * m_magic ;
 			my = my>>56 ;
-			my = my & row_mask ;
 
 			op = op_board>>shift ;
 			op = op & mplus_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
-			op = op & row_mask ;
 
 			if( table.get_value(my, op, y) )
 				return true ;
@@ -340,14 +326,12 @@ class board{
 			my = my * m_magic ;
 			my = my>>56 ;
 			my = my & ~ones[shift] ;
-			my = my & row_mask ;
 
 			op = op_board<<shift ;
 			op = op & mplus_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
 			op = op & ~ones[shift] ;
-			op = op & row_mask ;
 
 			if( table.get_value(my, op, y+shift) )
 				return true ;
@@ -361,13 +345,11 @@ class board{
 			my = my & mminus_mask ;
 			my = my * m_magic ;
 			my = my>>56 ;
-			my = my & row_mask ;
 
 			op = op_board<<shift ;
 			op = op & mminus_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
-			op = op & row_mask ;
 
 			if( table.get_value(my, op, y) )
 				return true ;
@@ -380,21 +362,19 @@ class board{
 			my = my * m_magic ;
 			my = my>>56 ;
 			my = my & ~ones[shift] ;
-			my = my & row_mask ;
 
 			op = op_board<<shift ;
 			op = op & mminus_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
 			op = op & ~ones[shift] ;
-			op = op & row_mask ;
 
 			if( table.get_value(my, op, y+shift) )
 				return true ;
 		}
 		return false ;
 	}
-
+/*
 	std::pair<int,int>* get_valid_move(std::pair<int,int>* val){
 		for(int x = 0 ; x < 8 ; ++x){
 			for(int y = 0 ; y < 8 ; ++y){
@@ -403,6 +383,143 @@ class board{
 					++val ;
 				}
 			}
+		}
+
+		return val ;
+	}
+*/
+	std::pair<int,int>* get_valid_move(std::pair<int,int>* val){
+		static GetValidTable table = GetValidTable() ;
+
+		unsigned long long my_board, op_board ;
+		if( my_tile ){
+			my_board = white ;
+			op_board = black ;
+		}
+		else {
+			my_board = black ;
+			op_board = white ;
+		}
+
+		unsigned long long validpos = 0 ;
+
+		static const unsigned long long row_mask = 	0xFF ;
+		static const unsigned long long col_mask = 	0x0101010101010101 ;
+		static const unsigned long long mplus_mask = 	0x0102040810204080 ;
+		static const unsigned long long mminus_mask = 	0x8040201008040201 ;
+		static const unsigned long long col_ones[] = {0, 0x0101010101010101, 
+			0x0303030303030303, 0x0707070707070707, 0x0F0F0F0F0F0F0F0F,
+			0x1F1F1F1F1F1F1F1F, 0x3F3F3F3F3F3F3F3F, 0x7F7F7F7F7F7F7F7F,
+			0xFFFFFFFFFFFFFFFF } ;
+
+		static const unsigned long long col_magic = mplus_mask ;
+		static const unsigned long long m_magic = col_mask ;
+
+		// Update row
+		for(int x = 0 ; x < 8 ; ++x){
+			int shift = x<<3 ;
+
+			unsigned long long my = (my_board>>shift)&row_mask ;
+			unsigned long long op = (op_board>>shift)&row_mask ;
+
+			unsigned long long validline = table.get_value(0, my, op) ;
+			validpos |= (validline<<shift) ;
+		}
+
+		// Update column
+		for(int y = 0 ; y < 8 ; ++y){
+			unsigned long long my = my_board>>y ;
+			my = my & col_mask ;
+			my = my * col_magic ;
+			my = my>>56 ;
+
+			unsigned long long op = op_board>>y ;
+			op = op & col_mask ;
+			op = op * col_magic ;
+			op = op>>56 ;
+
+			unsigned long long validline = table.get_value(1, my, op) ;
+			validpos |= (validline<<y) ;
+		}
+
+		// Update slope where m > 0
+		for(int x = 1 ; x < 8 ; ++x){
+			int shift = x<<3 ;
+
+			unsigned long long my = my_board>>shift ;
+			my = my & mplus_mask ;
+			my = my * m_magic ;
+			my = my>>56 ;
+
+			unsigned long long op = op_board>>shift ;
+			op = op & mplus_mask ;
+			op = op * m_magic ;
+			op = op | col_ones[x] ;
+			op = op>>56 ;
+
+			unsigned long long validline = table.get_value(2, my, op) ;
+			validpos |= (validline<<shift) ;
+		}
+
+		for(int y = 0 ; y < 8 ; ++y){
+			unsigned long long my = my_board<<y ;
+			my = my & mplus_mask ;
+			my = my * m_magic ;
+			my = my & ~col_ones[y] ;
+			my = my>>56 ;
+
+			unsigned long long op = op_board<<y ;
+			op = op & mplus_mask ;
+			op = op * m_magic ;
+			op = op | col_ones[y] ;
+			op = op>>56 ;
+
+			unsigned long long validline = table.get_value(2, my, op) ;
+			validpos |= (validline>>y) ;
+		}
+
+		// Check slope where m < 0
+		for(int x = 1 ; x < 8 ; ++x){
+			int shift = x<<3 ;
+			
+			unsigned long long my = my_board<<shift ;
+			my = my & mminus_mask ;
+			my = my * m_magic ;
+			my = my>>56 ;
+
+			unsigned long long op = op_board<<shift ;
+			op = op & mminus_mask ;
+			op = op * m_magic ;
+			op = op>>56 ;
+
+			unsigned long long validline = table.get_value(3, my, op) ;
+			validpos |= (validline>>shift) ;
+		}
+
+		for(int y = 0 ; y < 8 ; ++y){
+			unsigned long long my = my_board<<y ;
+			my = my & mminus_mask ;
+			my = my * m_magic ;
+			my = my & ~col_ones[y] ;
+			my = my>>56 ;
+
+			unsigned long long op = op_board<<y ;
+			op = op & mminus_mask ;
+			op = op * m_magic ;
+			op = op | col_ones[y] ;
+			op = op>>56 ;
+
+			unsigned long long validline = table.get_value(3, my, op) ;
+			validpos |= (validline>>y) ;
+		}
+
+		// Put valid moves in pair array
+		while( validpos ){
+			int p = __builtin_ctzll(validpos) ;
+			*val = std::pair<int,int>(p/8, p%8) ;
+			++val ;
+			validpos = validpos & ~(1ULL<<p) ;
+
 		}
 
 		return val ;

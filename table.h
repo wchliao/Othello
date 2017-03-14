@@ -121,8 +121,9 @@ class UpdateTable {
 	inline std::pair<unsigned long long, unsigned long long> get_value(int a, int b, int c, int d){
 		return table[(a<<19) | (b<<11) | (c<<3) | d] ;
 	}
-	
 } ;
+
+
 
 class IsValidTable {
 
@@ -178,16 +179,102 @@ class IsValidTable {
 	}
 } ;
 
-/*	unsigned char*** construct_get_valid_move_table(){
-		std::pair<unsigned long long, unsigned long long>**** table = new std::pair<unsigned long long,unsigned long long>***[4] ;
-		for(int i = 0 ; i < 4 ; i++){
-			table[i] = new std::pair<unsigned long long,unsigned long long>**[256] ;
-			for(int j = 0 ; j < 256 ; j++){
-				table[i][j] = new std::pair<unsigned long long,unsigned long long>*[256] ;
-				for(int k = 0 ; k < 256 ; k++)
-					table[i][j][k] = new std::pair<unsigned long long,unsigned long long>[8] ;
+
+
+class GetValidTable {
+
+	unsigned long long table[262144] ;
+
+	public:
+
+	GetValidTable(){
+		// Row's look-up table
+		for(int my = 0 ; my < 256 ; ++my){
+			for(int op = 0 ; op < 256 ; ++op){
+				unsigned char validpos = 0 ;
+				unsigned char pos = 1 ;
+				for(int p = 0 ; p < 8 ; ++p, pos = pos<<1){
+
+					if( (my&op) || (my&pos) || (op&pos) )
+						continue ;
+
+					// right
+					unsigned char tmppos = pos<<1 ;
+					if( op & tmppos ){
+						do {
+							tmppos = tmppos<<1 ;
+						}while( op & tmppos ) ;
+						if( my & tmppos ){
+							validpos |= pos ;
+							continue ;
+						}
+					}
+		
+					// left
+					tmppos = pos>>1 ;
+					if( op & tmppos ){
+						do {
+							tmppos = tmppos>>1 ;
+						}while( op & tmppos ) ;
+						if( my & tmppos ){
+							validpos |= pos ;
+							continue ;
+						}
+					}
+				}
+				table[get_index(0, my, op)] = validpos ;
 			}
 		}
+
+		// Column's look-up table
+		for(int my = 0 ; my < 256 ; ++my){
+			for(int op = 0 ; op < 256 ; ++op){
+				unsigned long long row_valid = get_value(0, my, op) ;
+				unsigned long long tmp_valid = 0 ;
+				const unsigned long long mask = 1 ;
+
+				for(int y = 0 ; y < 8 ; y++)
+					tmp_valid |= (((row_valid>>y)&mask)<<(y<<3)) ;
+
+				table[get_index(1, my, op)] = tmp_valid ;
+			}
+		}		
+
+		// Mpuls's look-up table
+		for(int my = 0 ; my < 256 ; ++my){
+			for(int op = 0 ; op < 256 ; ++op){
+				unsigned long long row_valid = get_value(0, my, op) ;
+				unsigned long long tmp_valid = 0 ;
+				const unsigned long long mask = 1 ;
+
+				for(int y = 0 ; y < 8 ; y++)
+					tmp_valid |= (((row_valid>>y)&mask)<<(((7-y)<<3)+y)) ;
+
+				table[get_index(2, my, op)] = tmp_valid ;
+			}
+		}		
+
+		// Mminus's look-up table
+		for(int my = 0 ; my < 256 ; ++my){
+			for(int op = 0 ; op < 256 ; ++op){
+				unsigned long long row_valid = get_value(0, my, op) ;
+				unsigned long long tmp_valid = 0 ;
+				const unsigned long long mask = 1 ;
+
+				for(int y = 0 ; y < 8 ; y++)
+					tmp_valid |= (((row_valid>>y)&mask)<<(y*9)) ;
+
+				table[get_index(3, my, op)] = tmp_valid ;
+			}
+		}		
 	}
-*/
+
+	inline int get_index(int a, int b, int c){
+		return ((a<<16) | (b<<8) | c) ;  // a*256*256 + b*256 + c
+	}
+
+	inline unsigned long long get_value(int a, int b, int c){
+		return table[(a<<16) | (b<<8) | c] ;
+	}
+} ;
 
