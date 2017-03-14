@@ -13,7 +13,7 @@
 // parameters
 const double UCB_c = 0.8 ;
 const int simulateN = 100 ;
-const int SearchDepth = 5 ;
+const int SearchDepth = 10 ;
 const int alarm_time = 3 ;
 
 // global flags
@@ -27,12 +27,16 @@ static void sig_handler(int signo){
 	return ;
 }
 
-constexpr char m_tolower(char c){
+constexpr char m_tolower(const char c){
 	return c+('A'<=c&&c<='Z')*('a'-'A');
 }
 
 constexpr unsigned my_hash(const char*s,unsigned long long int hv=0){
 	return *s&&*s!=' '?my_hash(s+1,(hv*('a'+1)+m_tolower(*s))%0X3FFFFFFFU):hv;
+}
+
+constexpr int sign(const int x){
+	return (x > 0) - (x < 0) ;
 }
 
 struct history {
@@ -147,7 +151,7 @@ class OTP{
 		stopflag = false ;
 
 		std::pair<int,int> ans = genmove() ;
-		fprintf(stderr,"totalsim = %d\n", totalsim);
+//		fprintf(stderr,"totalsim = %d\n", totalsim);
 		totalsim = 0 ;
 
 		time.it_value.tv_sec = 0 ;
@@ -187,14 +191,17 @@ class OTP{
 
 		bool my_tile = B.get_my_tile() ;
 		// Search
-//		int depth = 64 - B.get_count() ;
-//		if( depth < SearchDepth ){
-//			fprintf(stderr, "Search: Start searching...\n") ;
-//			std::pair<int,int>BestMove = SearchBestMove(B) ;
-//			if( stopflag )
-//				fprintf(stderr, "Search: Time Limit Exceed\n") ;
-//			return BestMove ;
-//		}
+		int depth = 64 - B.get_count() ;
+		if( depth <= SearchDepth ){
+			fprintf(stderr, "Search at depth %d: Start searching...\n", depth) ;
+			std::pair<int,int>BestMove = SearchBestMove(B) ;
+			if( stopflag )
+				fprintf(stderr, "Search: Time Limit Exceed\n") ;
+			return BestMove ;
+			fprintf(stderr, "Search BestMove: (%d,%d)\n", BestMove.first, BestMove.second) ;
+		}
+		else
+			return do_ranplay() ;
 
 		// Monte-Carlo
 		node *root = new node(B) ;
@@ -397,34 +404,31 @@ class OTP{
 			
 		const int beta = 1 ;
 		
-		std::pair<int,int> BestMove = ML[0] ; 
+		std::pair<int,int> BestMove = ML[0] ;
+		fprintf(stderr, "BestMove = ML[0] and MaxScore = -1\n") ;
 		int MaxScore = -1 ;
 
 		for( int i = 0 ; i < nodeCount ; ++i ){
 			board tmpB = B ;
 			tmpB.update(ML[i]) ;
-			int t = -Search(B, -beta, -MaxScore) ;
+			int t = -Search(tmpB, -beta, -MaxScore) ;
 			if( t > MaxScore ){
 				MaxScore = t ;
 				BestMove = ML[i] ;
+				fprintf(stderr, "BestMove = ML[%d] and MaxScore = %d\n", i, MaxScore) ;
 			}
 			if( MaxScore >= beta )
-				break ;
+				return BestMove ;
 		}
 
 		return BestMove ;
 	}
 
-	int Search(board B, int alpha, int beta){
+	int Search(board B, const int alpha, const int beta){
 		if( B.is_game_over() ){
-			int score = B.get_my_score() ;
-			if( score > 0 )
-				return 1 ;
-			else if( score < 0 )
-				return -1 ;
-			else
-				return 0 ;
-		}	
+			fprintf(stderr, "My tile is %s and my score is %d and get score is %d\n", B.get_my_tile()? "white":"black", B.get_my_score(), B.get_score()) ;
+			return sign(B.get_my_score()) ;
+		}
 
 		std::pair<int,int> ML[64], *MLED(ML) ;
 		int m = alpha ;

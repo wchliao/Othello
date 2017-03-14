@@ -547,11 +547,11 @@ class board{
 	}
 
 	constexpr int get_my_score()const{
-		return (my_tile? (__builtin_popcountll(white) - __builtin_popcountll(black)) : (__builtin_popcountll(black) - __builtin_popcount(white))) ;
+		return (my_tile? (__builtin_popcountll(white) - __builtin_popcountll(black)) : (__builtin_popcountll(black) - __builtin_popcountll(white))) ;
 	}
 
 	constexpr int get_score()const{
-		return __builtin_popcountll(black) - __builtin_popcountll(white) ;
+		return (__builtin_popcountll(black) - __builtin_popcountll(white)) ;
 	}
 
 	const bool operator[](int x)const{
