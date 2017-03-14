@@ -402,7 +402,7 @@ class board{
 		static const unsigned long long col_magic = mplus_mask ;
 		static const unsigned long long m_magic = col_mask ;
 
-		// Update row
+		// Check row
 		for(int x = 0 ; x < 8 ; ++x){
 			int shift = x<<3 ;
 
@@ -413,7 +413,7 @@ class board{
 			validpos |= (validline<<shift) ;
 		}
 
-		// Update column
+		// Check column
 		for(int y = 0 ; y < 8 ; ++y){
 			unsigned long long my = my_board>>y ;
 			my = my & col_mask ;
@@ -429,7 +429,7 @@ class board{
 			validpos |= (validline<<y) ;
 		}
 
-		// Update slope where m > 0
+		// Check slope where m > 0
 		for(int x = 1 ; x < 8 ; ++x){
 			int shift = x<<3 ;
 
