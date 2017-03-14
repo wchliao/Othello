@@ -192,16 +192,8 @@ class OTP{
 		bool my_tile = B.get_my_tile() ;
 		// Search
 		int depth = 64 - B.get_count() ;
-		if( depth <= SearchDepth ){
-			fprintf(stderr, "Search at depth %d: Start searching...\n", depth) ;
-			std::pair<int,int>BestMove = SearchBestMove(B) ;
-			if( stopflag )
-				fprintf(stderr, "Search: Time Limit Exceed\n") ;
-			return BestMove ;
-			fprintf(stderr, "Search BestMove: (%d,%d)\n", BestMove.first, BestMove.second) ;
-		}
-		else
-			return do_ranplay() ;
+		if( depth <= SearchDepth )
+			return SearchBestMove(B) ;
 
 		// Monte-Carlo
 		node *root = new node(B) ;
@@ -405,7 +397,6 @@ class OTP{
 		const int beta = 1 ;
 		
 		std::pair<int,int> BestMove = ML[0] ;
-		fprintf(stderr, "BestMove = ML[0] and MaxScore = -1\n") ;
 		int MaxScore = -1 ;
 
 		for( int i = 0 ; i < nodeCount ; ++i ){
@@ -415,7 +406,6 @@ class OTP{
 			if( t > MaxScore ){
 				MaxScore = t ;
 				BestMove = ML[i] ;
-				fprintf(stderr, "BestMove = ML[%d] and MaxScore = %d\n", i, MaxScore) ;
 			}
 			if( MaxScore >= beta )
 				return BestMove ;
@@ -425,10 +415,8 @@ class OTP{
 	}
 
 	int Search(board B, const int alpha, const int beta){
-		if( B.is_game_over() ){
-			fprintf(stderr, "My tile is %s and my score is %d and get score is %d\n", B.get_my_tile()? "white":"black", B.get_my_score(), B.get_score()) ;
+		if( B.is_game_over() )
 			return sign(B.get_my_score()) ;
-		}
 
 		std::pair<int,int> ML[64], *MLED(ML) ;
 		int m = alpha ;
