@@ -374,20 +374,7 @@ class board{
 		}
 		return false ;
 	}
-/*
-	std::pair<int,int>* get_valid_move(std::pair<int,int>* val){
-		for(int x = 0 ; x < 8 ; ++x){
-			for(int y = 0 ; y < 8 ; ++y){
-				if( is_valid_move(x, y) ){
-					*val = std::pair<int,int>(x,y) ;
-					++val ;
-				}
-			}
-		}
 
-		return val ;
-	}
-*/
 	std::pair<int,int>* get_valid_move(std::pair<int,int>* val){
 		static GetValidTable table = GetValidTable() ;
 
@@ -555,15 +542,15 @@ class board{
 		fflush(fp);
 	}
 
-	inline int get_count()const{
+	constexpr int get_count()const{
 		return __builtin_popcountll(black|white) ;
 	}
 
-	inline int get_my_score()const{
+	constexpr int get_my_score()const{
 		return (my_tile? (__builtin_popcountll(white) - __builtin_popcountll(black)) : (__builtin_popcountll(black) - __builtin_popcount(white))) ;
 	}
 
-	inline int get_score()const{
+	constexpr int get_score()const{
 		return __builtin_popcountll(black) - __builtin_popcountll(white) ;
 	}
 
@@ -582,15 +569,15 @@ class board{
 		return white ;
 	}
 
-	inline int get_pass()const{
+	constexpr int get_pass()const{
 		return pass;
 	}
 
-	inline bool get_my_tile()const{
+	constexpr bool get_my_tile()const{
 		return my_tile;
 	}
 
-	inline bool is_game_over()const{
+	constexpr bool is_game_over()const{
 		return pass==2;
 	}
 };
