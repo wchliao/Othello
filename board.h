@@ -438,8 +438,8 @@ class board{
 		fflush(fp);
 	}
 
-	inline std::pair<int,int> get_count()const{
-		return std::pair<int,int>(__builtin_popcountll(black), __builtin_popcountll(white));
+	inline int get_count()const{
+		return __builtin_popcountll(black|white) ;
 	}
 
 	inline int get_my_score()const{

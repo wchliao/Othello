@@ -187,7 +187,7 @@ class OTP{
 
 		bool my_tile = B.get_my_tile() ;
 		// Search
-//		int depth = 64 - __builtin_popcountll(B.get_black() | B.get_white()) ;
+//		int depth = 64 - B.get_count() ;
 //		if( depth < SearchDepth ){
 //			fprintf(stderr, "Search: Start searching...\n") ;
 //			std::pair<int,int>BestMove = SearchBestMove(B) ;
