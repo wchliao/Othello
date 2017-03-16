@@ -11,19 +11,22 @@
 #include<utility>
 
 // parameters
-const double UCB_c = 0.8 ;
-const int simulateN = 100 ;
-const int SearchDepth = 10 ;
-const int alarm_time = 3 ;
+constexpr double UCB_c = 0.8 ;
+constexpr int simulateN = 100 ;
+constexpr int SearchDepth = 10 ;
+constexpr int SimulateTime = 9 ;
+constexpr int preSimulateTime = 1 ;
+constexpr int SearchTime = SimulateTime - preSimulateTime ;
+constexpr int HashTableSize = pow(2,26) ;
 
 // global flags
-bool stopflag = false ;
+bool TimesUp = false ;
 
 // global counters
 int totalsim = 0 ;
 
 static void sig_handler(int signo){
-	stopflag = true ;
+	TimesUp = true ;
 	return ;
 }
 
@@ -39,10 +42,19 @@ constexpr int sign(const int x){
 	return (x > 0) - (x < 0) ;
 }
 
+struct HashInfo {
+	unsigned long long hash ;
+	int score ;
+	std::pair<int,int> pos ;
+
+	constexpr HashInfo(): hash(0), score(0), pos() {} ;
+} ;
+
 struct history {
 	unsigned long long black ;
 	unsigned long long white ;
 	int pass ;
+//	unsigned long long hash ;
 } ;
 
 struct grade {
@@ -106,26 +118,35 @@ template<class RIT>RIT random_choice(RIT st,RIT ed){
 
 }
 
+bool SetClock(int alarm_time){
+	struct itimerval time ;
+	time.it_interval.tv_usec = 0 ;
+	time.it_interval.tv_sec = 0 ;
+	time.it_value.tv_usec = 0 ;
+	time.it_value.tv_sec = alarm_time ;
+	
+	TimesUp = false ;
+	
+	if( setitimer( ITIMER_REAL, &time, NULL) < 0 ){
+		fprintf(stderr, "set timer fail.\n") ;
+		return false ;
+	}
+	else
+		return true ;
+}
+
 class OTP{
 
 	board B;
 	history H[128],*Hp;
+//	HashInfo *HashTable ;
+//	unsigned long long int HashPos[2][64] ;
+//	unsigned long long int HashColor[2] ;
 
 	//initialize in do_init
 	void do_init(){
-
 		B = board() ;
 		Hp = H ;
-
-		struct sigaction act ;
-		act.sa_handler = sig_handler ;
-		sigemptyset(&act.sa_mask) ;
-		sigaddset(&act.sa_mask, SIGALRM) ;
-		act.sa_flags = 0 ;
-		act.sa_flags |= SA_INTERRUPT ;
-
-		if( sigaction( SIGALRM, &act, NULL ) < 0 )
-			fprintf(stderr, "sigaction fail.\n") ;
 	}
 
 	// Randomly return a valid move
@@ -140,25 +161,78 @@ class OTP{
 
 	//choose the best move in do_genmove
 	std::pair<int,int> do_genmove(){
-		struct itimerval time ;
-		time.it_interval.tv_usec = 0 ;
-		time.it_interval.tv_sec = 0 ;
-		time.it_value.tv_usec = 0 ;
-		time.it_value.tv_sec = alarm_time ;
-		if( setitimer( ITIMER_REAL, &time, NULL) < 0 )
-			fprintf(stderr, "set timer fail.\n") ;
+		
+		if( no_valid_move() )
+			return std::pair<int,int>(8,0) ;
+		
+		bool my_tile = B.get_my_tile() ;
+		int depth = 64 - B.get_count() ;
 
-		stopflag = false ;
+		if( depth <= SearchDepth ){
+			// Monte-Carlo
+			SetClock(preSimulateTime) ;
+			
+			node *root = new node(B) ;
+			while( !TimesUp ){
+				grade g = root_simulate(root, my_tile, my_tile) ;
+				root->simulateCount += g.simulateCount ;
+			}
 
-		std::pair<int,int> ans = genmove() ;
-//		fprintf(stderr,"totalsim = %d\n", totalsim);
-		totalsim = 0 ;
+			node *maxN = root->child ;
+			node *tmpN = root->child->next ;
+			for( int i = 1 ; i < root->childCount ; ++i ){
+				if( tmpN->winrate > maxN->winrate )
+					maxN = tmpN ;
+				tmpN = tmpN->next ;
+			}
 
-		time.it_value.tv_sec = 0 ;
-		if( setitimer( ITIMER_REAL, &time, NULL) < 0 )
-			fprintf(stderr, "set timer fail.\n") ;
-		stopflag = false ;
-		return ans ;
+			std::pair<int,int> MCBestMove = maxN->pos ;
+			fprintf(stderr,"totalsim = %d\n", totalsim) ;
+			totalsim = 0 ;
+			destroyTree(root) ;
+
+			// Search
+			SetClock(SearchTime) ;
+			
+			fprintf(stderr, "Search at depth %d: Start searching...\n", depth) ;
+			std::pair<int,int>SBestMove = SearchBestMove(B) ;
+			if( TimesUp ){
+				fprintf(stderr, "Search: Time Limit Exceed\n") ;
+				SetClock(0) ;
+				return MCBestMove ;
+			}
+			else {
+				SetClock(0) ;
+				return SBestMove ;
+			}
+		}
+		else {
+//			return do_ranplay() ;
+
+			// Monte-Carlo
+			SetClock(SimulateTime) ;
+
+			node *root = new node(B) ;
+			while( !TimesUp ){
+				grade g = root_simulate(root, my_tile, my_tile) ;
+				root->simulateCount += g.simulateCount ;
+			}
+
+			node *maxN = root->child ;
+			node *tmpN = root->child->next ;
+			for( int i = 1 ; i < root->childCount ; ++i ){
+				if( tmpN->winrate > maxN->winrate )
+					maxN = tmpN ;
+				tmpN = tmpN->next ;
+			}
+
+			std::pair<int,int> BestMove = maxN->pos ;
+			fprintf(stderr,"totalsim = %d\n", totalsim) ;
+			totalsim = 0 ;
+			destroyTree(root) ;
+			SetClock(0) ;
+			return BestMove ;
+		}
 	}
 
 	//update board and history in do_play
@@ -183,35 +257,6 @@ class OTP{
 		}else{
 			fputs("wrong undo.\n",stderr);
 		}
-	}
-
-	std::pair<int,int> genmove(){
-		if( no_valid_move() )
-			return std::pair<int,int>(8,0) ;
-
-		bool my_tile = B.get_my_tile() ;
-		// Search
-		int depth = 64 - B.get_count() ;
-		if( depth <= SearchDepth )
-			return SearchBestMove(B) ;
-
-		// Monte-Carlo
-		node *root = new node(B) ;
-		while(!stopflag){
-			grade g = root_simulate(root, my_tile, my_tile) ;
-			root->simulateCount += g.simulateCount ;
-		}
-
-		node *maxN = root->child ;
-		node *tmpN = root->child->next ;
-		for( int i = 1 ; i < root->childCount ; ++i ){
-			if( tmpN->winrate > maxN->winrate )
-				maxN = tmpN ;
-			tmpN = tmpN->next ;
-		}
-
-		destroyTree(root) ;
-		return maxN->pos ;
 	}
 
 	// All information is updated at child level
@@ -399,7 +444,7 @@ class OTP{
 		std::pair<int,int> BestMove = ML[0] ;
 		int MaxScore = -1 ;
 
-		for( int i = 0 ; i < nodeCount ; ++i ){
+		for( int i = 0 ; i < nodeCount && !TimesUp ; ++i ){
 			board tmpB = B ;
 			tmpB.update(ML[i]) ;
 			int t = -Search(tmpB, -beta, -MaxScore) ;
@@ -415,7 +460,7 @@ class OTP{
 	}
 
 	int Search(board B, const int alpha, const int beta){
-		if( B.is_game_over() )
+		if( B.is_game_over() || TimesUp )
 			return sign(B.get_my_score()) ;
 
 		std::pair<int,int> ML[64], *MLED(ML) ;
@@ -429,7 +474,7 @@ class OTP{
 			return -Search(tmpB, -beta, -m) ;
 		}
 		else {
-			for(int i = 0 ; i < nodeCount ; ++i){
+			for(int i = 0 ; i < nodeCount && !TimesUp ; ++i){
 				board tmpB = B ;
 				tmpB.update(ML[i]) ;
 				int t = -Search(tmpB, -beta, -m) ;
@@ -455,6 +500,20 @@ class OTP{
 	public:
 	OTP():B(),Hp(H){
 		do_init();
+	
+	//	HashTable = new HashInfo[HashTableSize] ;
+	//	HashPos[2][64] ;
+	//	HashColor[2] ;
+		
+		struct sigaction act ;
+		act.sa_handler = sig_handler ;
+		sigemptyset(&act.sa_mask) ;
+		sigaddset(&act.sa_mask, SIGALRM) ;
+		act.sa_flags = 0 ;
+		act.sa_flags |= SA_INTERRUPT ;
+
+		if( sigaction( SIGALRM, &act, NULL ) < 0 )
+			fprintf(stderr, "sigaction fail.\n") ;
 	}
 
 	bool do_op(const char*cmd,char*out,FILE*myerr){
