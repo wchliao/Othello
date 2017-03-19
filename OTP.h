@@ -444,7 +444,7 @@ class OTP{
 		std::pair<int,int> BestMove = ML[0] ;
 		int MaxScore = -1 ;
 
-		for( int i = 0 ; i < nodeCount && !TimesUp ; ++i ){
+		for( int i = 0 ; i < nodeCount ; ++i ){
 			board tmpB = B ;
 			tmpB.update(ML[i]) ;
 			int t = -Search(tmpB, -beta, -MaxScore) ;
