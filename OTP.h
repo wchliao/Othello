@@ -474,7 +474,7 @@ class OTP{
 			return -Search(tmpB, -beta, -m) ;
 		}
 		else {
-			for(int i = 0 ; i < nodeCount && !TimesUp ; ++i){
+			for(int i = 0 ; i < nodeCount ; ++i){
 				board tmpB = B ;
 				tmpB.update(ML[i]) ;
 				int t = -Search(tmpB, -beta, -m) ;
