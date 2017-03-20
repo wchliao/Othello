@@ -11,19 +11,19 @@
 #include<utility>
 
 // parameters
-constexpr double UCB_c = 0.8 ;
-constexpr int simulateN = 100 ;
-constexpr int SearchDepth = 10 ;
+constexpr double UCB_c = 0.1 ;
+constexpr int simulateN = 1000 ;
+constexpr int SearchDepth = 14 ;
 constexpr int SimulateTime = 9 ;
 constexpr int preSimulateTime = 1 ;
 constexpr int SearchTime = SimulateTime - preSimulateTime ;
-constexpr int HashTableSize = pow(2,26) ;
+constexpr int HashTableSize = 1<<26 ;
 
 // global flags
 bool TimesUp = false ;
 
 // global counters
-int totalsim = 0 ;
+long long int totalsim = 0 ;
 
 static void sig_handler(int signo){
 	TimesUp = true ;
@@ -40,6 +40,14 @@ constexpr unsigned my_hash(const char*s,unsigned long long int hv=0){
 
 constexpr int sign(const int x){
 	return (x > 0) - (x < 0) ;
+}
+
+constexpr double var(double winrate){
+	return (winrate * (1-winrate)) ;
+}
+
+constexpr double stddev(double winrate){
+	return sqrt(winrate * (1-winrate)) ;
 }
 
 struct HashInfo {
@@ -187,7 +195,7 @@ class OTP{
 			}
 
 			std::pair<int,int> MCBestMove = maxN->pos ;
-			fprintf(stderr,"totalsim = %d\n", totalsim) ;
+			fprintf(stderr,"totalsim = %lld\n", totalsim) ;
 			totalsim = 0 ;
 			destroyTree(root) ;
 
@@ -220,14 +228,16 @@ class OTP{
 
 			node *maxN = root->child ;
 			node *tmpN = root->child->next ;
+			fprintf(stderr, "(%d,%d): %f\n", maxN->pos.first, maxN->pos.second, maxN->winrate);
 			for( int i = 1 ; i < root->childCount ; ++i ){
+				fprintf(stderr, "(%d,%d): %f\n", tmpN->pos.first, tmpN->pos.second, tmpN->winrate);
 				if( tmpN->winrate > maxN->winrate )
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
 			}
 
 			std::pair<int,int> BestMove = maxN->pos ;
-			fprintf(stderr,"totalsim = %d\n", totalsim) ;
+			fprintf(stderr,"totalsim = %lld\n", totalsim) ;
 			totalsim = 0 ;
 			destroyTree(root) ;
 			SetClock(0) ;
@@ -299,6 +309,13 @@ class OTP{
 			g = root_simulate(maxN, !my_tile, top_root_tile) ;
 			
 			// Back propagation
+			double pot = sqrt(log(root->simulateCount + g.simulateCount)/log(root->simulateCount)) ;
+			tmpN = root->child ;
+			for( int i = 0 ; i < root->childCount ; ++i ){
+				tmpN->pot *= pot ;
+				tmpN = tmpN->next ;
+			}
+			
 			if( my_tile == top_root_tile ){
 				maxN->win += g.win ;
 				maxN->lose += g.lose ;
@@ -310,14 +327,7 @@ class OTP{
 			maxN->draw += g.draw ;
 			maxN->simulateCount += g.simulateCount ;
 			maxN->winrate = double(maxN->win)/maxN->simulateCount ;
-			maxN->pot *= sqrt((double)(maxN->simulateCount - g.simulateCount) / maxN->simulateCount) ;
-			
-			double pot = sqrt(log(root->simulateCount + g.simulateCount)/log(root->simulateCount)) ;
-			tmpN = root->child ;
-			for( int i = 0 ; i < root->childCount ; ++i ){
-				tmpN->pot *= pot ;
-				tmpN = tmpN->next ;
-			}
+			maxN->pot = UCB_c*sqrt(var(maxN->winrate)*log(root->simulateCount + g.simulateCount)/maxN->simulateCount) ;
 		}
 		else {
 			std::pair<int,int> ML[64], *MLED(root->B.get_valid_move(ML)) ;
@@ -367,6 +377,7 @@ class OTP{
 					tmpN->lose = tmpg.lose ;
 					tmpN->draw = tmpg.draw ;
 					tmpN->winrate = double(tmpN->win)/tmpN->simulateCount ;
+					tmpN->pot *= stddev(tmpN->winrate) ;
 					tmpN = tmpN->next ;
 
 					g.win += tmpg.win ;
@@ -381,6 +392,7 @@ class OTP{
 					tmpN->lose = tmpg.win ;
 					tmpN->draw = tmpg.draw ;
 					tmpN->winrate = double(tmpN->win)/tmpN->simulateCount ;
+					tmpN->pot *= stddev(tmpN->winrate) ;
 					tmpN = tmpN->next ;
 					
 					g.win += tmpg.win ;
