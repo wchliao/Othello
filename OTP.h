@@ -1,4 +1,5 @@
 #include"board.h"
+#include"openbook.h"
 #include<random>
 #ifdef _WIN32
 #include<chrono>
@@ -13,6 +14,7 @@
 // parameters
 constexpr double UCB_c = 0.1 ;
 constexpr int simulateN = 1000 ;
+constexpr int OpenBookDepth = 10 ;
 constexpr int SearchDepth = 14 ;
 constexpr int SimulateTime = 9 ;
 constexpr int preSimulateTime = 1 ;
@@ -176,6 +178,12 @@ class OTP{
 		bool my_tile = B.get_my_tile() ;
 		int depth = 64 - B.get_count() ;
 
+		if( B.get_count() < OpenBookDepth + 4 ){
+			std::pair<int,int> pos = OpenBook(B.get_black(), B.get_white()) ;
+			if( B.is_valid_move(pos.first, pos.second) )
+				return pos ;
+		}
+
 		if( depth <= SearchDepth ){
 			// Monte-Carlo
 			SetClock(preSimulateTime) ;
@@ -228,9 +236,9 @@ class OTP{
 
 			node *maxN = root->child ;
 			node *tmpN = root->child->next ;
-			fprintf(stderr, "(%d,%d): %f\n", maxN->pos.first, maxN->pos.second, maxN->winrate);
+			fprintf(stderr, "(%d,%d): %f with %d simulates\n", maxN->pos.first, maxN->pos.second, maxN->winrate, maxN->simulateCount);
 			for( int i = 1 ; i < root->childCount ; ++i ){
-				fprintf(stderr, "(%d,%d): %f\n", tmpN->pos.first, tmpN->pos.second, tmpN->winrate);
+				fprintf(stderr, "(%d,%d): %f with %d simulates\n", tmpN->pos.first, tmpN->pos.second, tmpN->winrate, tmpN->simulateCount);
 				if( tmpN->winrate > maxN->winrate )
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
@@ -538,10 +546,11 @@ class OTP{
 				B.show_board(myerr);
 				sprintf(out,"clear_board");
 				return true;
-			case my_hash("showboard"):
+			case my_hash("showboard"):{ 
 				B.show_board(myerr);
 				sprintf(out,"showboard");
 				return true;
+			}
 			case my_hash("play"):{
 				int x,y;
 				sscanf(cmd,"%*s %d %d",&x,&y);
