@@ -4,6 +4,13 @@
 #ifdef _WIN32
 #include<chrono>
 #endif
+
+#ifdef _WINDOWS
+#include<windows.h>
+#else
+#include<ctime>
+#endif
+
 #include<cstring>
 #include<string>
 #include<sys/time.h>
@@ -13,9 +20,9 @@
 
 // parameters
 constexpr double UCB_c = 0.1 ;
-constexpr int simulateN = 1000 ;
+constexpr int simulateN = 10000 ;
 constexpr int OpenBookDepth = 10 ;
-constexpr int SearchDepth = 14 ;
+constexpr int SearchDepth = 18 ;
 constexpr int SimulateTime = 9 ;
 constexpr int preSimulateTime = 1 ;
 constexpr int SearchTime = SimulateTime - preSimulateTime ;
@@ -71,7 +78,7 @@ struct grade {
 	int win ;
 	int lose ;
 	int draw ;
-	int simulateCount ;
+	long long int simulateCount ;
 
 	constexpr grade(): win(0), lose(0), draw(0), simulateCount(0) {}
 } ;
@@ -80,7 +87,7 @@ struct node {
 	int win ;
 	int lose ;
 	int draw ;
-	int simulateCount ;
+	long long int simulateCount ;
 	double winrate ;
 	double pot ;
 
@@ -223,7 +230,7 @@ class OTP{
 			}
 		}
 		else {
-//			return do_ranplay() ;
+	//		return do_ranplay() ;
 
 			// Monte-Carlo
 			SetClock(SimulateTime) ;
@@ -236,9 +243,9 @@ class OTP{
 
 			node *maxN = root->child ;
 			node *tmpN = root->child->next ;
-			fprintf(stderr, "(%d,%d): %f with %d simulates\n", maxN->pos.first, maxN->pos.second, maxN->winrate, maxN->simulateCount);
+			fprintf(stderr, "(%d,%d): %f with %lld simulates\n", maxN->pos.first, maxN->pos.second, maxN->winrate, maxN->simulateCount);
 			for( int i = 1 ; i < root->childCount ; ++i ){
-				fprintf(stderr, "(%d,%d): %f with %d simulates\n", tmpN->pos.first, tmpN->pos.second, tmpN->winrate, tmpN->simulateCount);
+				fprintf(stderr, "(%d,%d): %f with %lld simulates\n", tmpN->pos.first, tmpN->pos.second, tmpN->winrate, tmpN->simulateCount);
 				if( tmpN->winrate > maxN->winrate )
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
@@ -359,7 +366,7 @@ class OTP{
 				root->child->pos = ML[0] ;
 			}
 
-			int simulateCount = simulateN/nodeCount ;
+			long long int simulateCount = simulateN/nodeCount ;
 			double pot = UCB_c*sqrt(log(simulateCount*nodeCount)/simulateCount) ;
 			root->child->pot = pot ;
 			root->child->simulateCount = simulateCount ;
@@ -416,7 +423,7 @@ class OTP{
 		return g ;
 	}
 
-	grade leaf_simulate(board B, bool top_root_tile, int simulateCount){
+	grade leaf_simulate(board B, bool top_root_tile, long long int simulateCount){
 		grade g ;
 		std::pair<int,int> ML[64], *MLED(ML) ;
 		int score ;
@@ -472,10 +479,16 @@ class OTP{
 				MaxScore = t ;
 				BestMove = ML[i] ;
 			}
-			if( MaxScore >= beta )
+			if( MaxScore >= beta ){
+				fprintf(stderr, "Search result: Win\n") ;
 				return BestMove ;
+			}
 		}
 
+		if( MaxScore < 0 )
+			fprintf(stderr, "Search result: Lose\n") ;
+		else if( MaxScore == 0 )
+			fprintf(stderr, "Search result: Draw\n") ;
 		return BestMove ;
 	}
 
