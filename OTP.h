@@ -75,18 +75,18 @@ struct history {
 } ;
 
 struct grade {
-	int win ;
-	int lose ;
-	int draw ;
+	long long int win ;
+	long long int lose ;
+	long long int draw ;
 	long long int simulateCount ;
 
 	constexpr grade(): win(0), lose(0), draw(0), simulateCount(0) {}
 } ;
 
 struct node {
-	int win ;
-	int lose ;
-	int draw ;
+	long long int win ;
+	long long int lose ;
+	long long int draw ;
 	long long int simulateCount ;
 	double winrate ;
 	double pot ;
