@@ -84,14 +84,14 @@ class board{
 			
 			static const unsigned long long row_mask = 	0xFF ;
 			static const unsigned long long col_mask = 	0x0101010101010101 ;
-			static const unsigned long long mplus_mask = 	0x0102040810204080 ;
-			static const unsigned long long mminus_mask = 	0x8040201008040201 ;
+			static const unsigned long long mpos_mask = 	0x0102040810204080 ;
+			static const unsigned long long mneg_mask = 	0x8040201008040201 ;
 			static const unsigned long long col_ones[] = {0, 0x0101010101010101, 
 				0x0303030303030303, 0x0707070707070707, 0x0F0F0F0F0F0F0F0F,
 				0x1F1F1F1F1F1F1F1F, 0x3F3F3F3F3F3F3F3F, 0x7F7F7F7F7F7F7F7F,
 				0xFFFFFFFFFFFFFFFF } ;
 
-			static const unsigned long long col_magic = mplus_mask ;
+			static const unsigned long long col_magic = mpos_mask ;
 			static const unsigned long long m_magic = col_mask ;
 	
 			// Update row
@@ -131,34 +131,34 @@ class board{
 				shift = (x+y-7)<<3 ; // (x+y-8)*8
 
 				my = origin_my>>shift ;
-				my = my & mplus_mask ;
+				my = my & mpos_mask ;
 				my = my * m_magic ;
 				my = my>>56 ;
 
 				op = origin_op>>shift ;
-				op = op & mplus_mask ;
+				op = op & mpos_mask ;
 				op = op * m_magic ;
 				op = op>>56 ;
 
 				update_my = table.get_value(2, my, op, y).first ;
 				update_op = table.get_value(2, my, op, y).second ;
 		
-				*my_board = *my_board & ~(mplus_mask<<shift) ;
+				*my_board = *my_board & ~(mpos_mask<<shift) ;
 				*my_board = *my_board | (update_my<<shift) ;
-				*op_board = *op_board & ~(mplus_mask<<shift) ;
+				*op_board = *op_board & ~(mpos_mask<<shift) ;
 				*op_board = *op_board | (update_op<<shift) ;
 			}
 			else {
 				shift = 7-x-y ; 
 
 				my = origin_my<<shift ;
-				my = my & mplus_mask ;
+				my = my & mpos_mask ;
 				my = my * m_magic ;
 				my = my>>56 ;
 				my = my & ~col_ones[shift] ;
 
 				op = origin_op<<shift ;
-				op = op & mplus_mask ;
+				op = op & mpos_mask ;
 				op = op * m_magic ;
 				op = op>>56 ;
 				op = op & ~col_ones[shift] ;
@@ -166,9 +166,9 @@ class board{
 				update_my = table.get_value(2, my, op, y+shift).first ;
 				update_op = table.get_value(2, my, op, y+shift).second ;
 		
-				*my_board = *my_board & ~((mplus_mask & ~col_ones[shift])>>shift) ;
+				*my_board = *my_board & ~((mpos_mask & ~col_ones[shift])>>shift) ;
 				*my_board = *my_board | (update_my>>shift) ;
-				*op_board = *op_board & ~((mplus_mask & ~col_ones[shift])>>shift) ;
+				*op_board = *op_board & ~((mpos_mask & ~col_ones[shift])>>shift) ;
 				*op_board = *op_board | (update_op>>shift) ;
 			}
 		
@@ -177,34 +177,34 @@ class board{
 				shift = (y-x)<<3 ; // (y-x)*8
 
 				my = origin_my<<shift ;
-				my = my & mminus_mask ;
+				my = my & mneg_mask ;
 				my = my * m_magic ;
 				my = my>>56 ;
 
 				op = origin_op<<shift ;
-				op = op & mminus_mask ;
+				op = op & mneg_mask ;
 				op = op * m_magic ;
 				op = op>>56 ;
 
 				update_my = table.get_value(3, my, op, y).first ;
 				update_op = table.get_value(3, my, op, y).second ;
 		
-				*my_board = *my_board & ~(mminus_mask>>shift) ;
+				*my_board = *my_board & ~(mneg_mask>>shift) ;
 				*my_board = *my_board | (update_my>>shift) ;
-				*op_board = *op_board & ~(mminus_mask>>shift) ;
+				*op_board = *op_board & ~(mneg_mask>>shift) ;
 				*op_board = *op_board | (update_op>>shift) ;
 			}
 			else {
 				shift = x-y ; 
 
 				my = origin_my<<shift ;
-				my = my & mminus_mask ;
+				my = my & mneg_mask ;
 				my = my * m_magic ;
 				my = my>>56 ;
 				my = my & ~col_ones[shift] ;
 
 				op = origin_op<<shift ;
-				op = op & mminus_mask ;
+				op = op & mneg_mask ;
 				op = op * m_magic ;
 				op = op>>56 ;
 				op = op & ~col_ones[shift] ;
@@ -212,9 +212,9 @@ class board{
 				update_my = table.get_value(3, my, op, y+shift).first ;
 				update_op = table.get_value(3, my, op, y+shift).second ;
 		
-				*my_board = *my_board & ~((mminus_mask & ~col_ones[shift])>>shift) ;
+				*my_board = *my_board & ~((mneg_mask & ~col_ones[shift])>>shift) ;
 				*my_board = *my_board | (update_my>>shift) ;
-				*op_board = *op_board & ~((mminus_mask & ~col_ones[shift])>>shift) ;
+				*op_board = *op_board & ~((mneg_mask & ~col_ones[shift])>>shift) ;
 				*op_board = *op_board | (update_op>>shift) ;
 			}
 			
@@ -274,10 +274,10 @@ class board{
 
 		const unsigned long long row_mask = 	0xFF ;
 		const unsigned long long col_mask = 	0x0101010101010101 ;
-		const unsigned long long mplus_mask = 	0x0102040810204080 ;
-		const unsigned long long mminus_mask = 	0x8040201008040201 ;
+		const unsigned long long mpos_mask = 	0x0102040810204080 ;
+		const unsigned long long mneg_mask = 	0x8040201008040201 ;
 
-		const unsigned long long col_magic = mplus_mask ;
+		const unsigned long long col_magic = mpos_mask ;
 		const unsigned long long m_magic = col_mask ;
 		
 		// Check row
@@ -306,12 +306,12 @@ class board{
 			shift = (x+y-7)<<3 ; // (x+y-8)*8
 
 			my = my_board>>shift ;
-			my = my & mplus_mask ;
+			my = my & mpos_mask ;
 			my = my * m_magic ;
 			my = my>>56 ;
 
 			op = op_board>>shift ;
-			op = op & mplus_mask ;
+			op = op & mpos_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
 
@@ -322,13 +322,13 @@ class board{
 			shift = 7-x-y ; 
 
 			my = my_board<<shift ;
-			my = my & mplus_mask ;
+			my = my & mpos_mask ;
 			my = my * m_magic ;
 			my = my>>56 ;
 			my = my & ~ones[shift] ;
 
 			op = op_board<<shift ;
-			op = op & mplus_mask ;
+			op = op & mpos_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
 			op = op & ~ones[shift] ;
@@ -342,12 +342,12 @@ class board{
 			shift = (y-x)<<3 ; // (y-x)*8
 
 			my = my_board<<shift ;
-			my = my & mminus_mask ;
+			my = my & mneg_mask ;
 			my = my * m_magic ;
 			my = my>>56 ;
 
 			op = op_board<<shift ;
-			op = op & mminus_mask ;
+			op = op & mneg_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
 
@@ -358,13 +358,13 @@ class board{
 			shift = x-y ; 
 
 			my = my_board<<shift ;
-			my = my & mminus_mask ;
+			my = my & mneg_mask ;
 			my = my * m_magic ;
 			my = my>>56 ;
 			my = my & ~ones[shift] ;
 
 			op = op_board<<shift ;
-			op = op & mminus_mask ;
+			op = op & mneg_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
 			op = op & ~ones[shift] ;
@@ -392,14 +392,14 @@ class board{
 
 		static const unsigned long long row_mask = 	0xFF ;
 		static const unsigned long long col_mask = 	0x0101010101010101 ;
-		static const unsigned long long mplus_mask = 	0x0102040810204080 ;
-		static const unsigned long long mminus_mask = 	0x8040201008040201 ;
+		static const unsigned long long mpos_mask = 	0x0102040810204080 ;
+		static const unsigned long long mneg_mask = 	0x8040201008040201 ;
 		static const unsigned long long col_ones[] = {0, 0x0101010101010101, 
 			0x0303030303030303, 0x0707070707070707, 0x0F0F0F0F0F0F0F0F,
 			0x1F1F1F1F1F1F1F1F, 0x3F3F3F3F3F3F3F3F, 0x7F7F7F7F7F7F7F7F,
 			0xFFFFFFFFFFFFFFFF } ;
 
-		static const unsigned long long col_magic = mplus_mask ;
+		static const unsigned long long col_magic = mpos_mask ;
 		static const unsigned long long m_magic = col_mask ;
 
 		// Check row
@@ -434,12 +434,12 @@ class board{
 			int shift = x<<3 ;
 
 			unsigned long long my = my_board>>shift ;
-			my = my & mplus_mask ;
+			my = my & mpos_mask ;
 			my = my * m_magic ;
 			my = my>>56 ;
 
 			unsigned long long op = op_board>>shift ;
-			op = op & mplus_mask ;
+			op = op & mpos_mask ;
 			op = op * m_magic ;
 			op = op | col_ones[x] ;
 			op = op>>56 ;
@@ -450,13 +450,13 @@ class board{
 
 		for(int y = 0 ; y < 8 ; ++y){
 			unsigned long long my = my_board<<y ;
-			my = my & mplus_mask ;
+			my = my & mpos_mask ;
 			my = my * m_magic ;
 			my = my & ~col_ones[y] ;
 			my = my>>56 ;
 
 			unsigned long long op = op_board<<y ;
-			op = op & mplus_mask ;
+			op = op & mpos_mask ;
 			op = op * m_magic ;
 			op = op | col_ones[y] ;
 			op = op>>56 ;
@@ -470,12 +470,12 @@ class board{
 			int shift = x<<3 ;
 			
 			unsigned long long my = my_board<<shift ;
-			my = my & mminus_mask ;
+			my = my & mneg_mask ;
 			my = my * m_magic ;
 			my = my>>56 ;
 
 			unsigned long long op = op_board<<shift ;
-			op = op & mminus_mask ;
+			op = op & mneg_mask ;
 			op = op * m_magic ;
 			op = op>>56 ;
 
@@ -485,13 +485,13 @@ class board{
 
 		for(int y = 0 ; y < 8 ; ++y){
 			unsigned long long my = my_board<<y ;
-			my = my & mminus_mask ;
+			my = my & mneg_mask ;
 			my = my * m_magic ;
 			my = my & ~col_ones[y] ;
 			my = my>>56 ;
 
 			unsigned long long op = op_board<<y ;
-			op = op & mminus_mask ;
+			op = op & mneg_mask ;
 			op = op * m_magic ;
 			op = op | col_ones[y] ;
 			op = op>>56 ;
@@ -503,7 +503,7 @@ class board{
 		// Put valid moves in pair array
 		while( validpos ){
 			int p = __builtin_ctzll(validpos) ;
-			*val = std::pair<int,int>(p/8, p%8) ;
+			*val = std::pair<int,int>(p>>3, p&7) ; // (p/8, p%8)
 			++val ;
 			validpos = validpos & ~(1ULL<<p) ;
 
@@ -539,6 +539,9 @@ class board{
 			}
 			fprintf(fp,"|\n");
 		}
+
+		fprintf(fp, "X: %d pts, O: %d pts\n", __builtin_popcountll(black), __builtin_popcountll(white)) ;
+
 		fflush(fp);
 	}
 
