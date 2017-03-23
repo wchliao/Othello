@@ -21,21 +21,51 @@
 // parameters
 constexpr double UCB_c = 0.1 ;
 constexpr int simulateN = 10000 ;
-constexpr int OpenBookDepth = 10 ;
-constexpr int SearchDepth = 18 ;
-constexpr int SimulateTime = 9 ;
+
+constexpr int OpenBookDepth = 14 ;
+constexpr int SearchDepth = 20 ;
+
+constexpr int SimulateTime = 30 ;
 constexpr int preSimulateTime = 1 ;
 constexpr int SearchTime = SimulateTime - preSimulateTime ;
-constexpr int HashTableSize = 1<<26 ;
+constexpr clock_t PreservedTime = 60 ;
 
-// global flags
-bool TimesUp = false ;
+//constexpr int HashTableSize = 1<<26 ;
 
 // global counters
 long long int totalsim = 0 ;
+clock_t TotalTimeLimit = 1800 * CLOCKS_PER_SEC ;
 
-static void sig_handler(int signo){
-	TimesUp = true ;
+// globla variables
+#ifdef _WINDOWS
+DWORD Tick ;
+int TimeOut ;
+#else
+clock_t Tick ;
+clock_t TimeOut ;
+#endif
+/*
+HashInfo *HashTable ;
+unsigned long long int HashPos[2][64] ;
+unsigned long long int HashColor[2] ;
+*/
+
+inline bool TimesUp(){
+#ifdef _WINDOWS
+	return ( GetTickCount() - Tick >= TimeOut ) ;
+#else
+	return ( clock() - Tick >= TimeOut ) ;
+#endif
+}
+
+void SetClock(int alarm_time){
+#ifdef _WINDOWS
+	Tick = GetTickCount() ;
+	TimeOut = alarm_time * 1000 ;
+#else
+	Tick = clock() ;
+	TimeOut = alarm_time * CLOCKS_PER_SEC ;
+#endif
 	return ;
 }
 
@@ -135,30 +165,10 @@ template<class RIT>RIT random_choice(RIT st,RIT ed){
 
 }
 
-bool SetClock(int alarm_time){
-	struct itimerval time ;
-	time.it_interval.tv_usec = 0 ;
-	time.it_interval.tv_sec = 0 ;
-	time.it_value.tv_usec = 0 ;
-	time.it_value.tv_sec = alarm_time ;
-	
-	TimesUp = false ;
-	
-	if( setitimer( ITIMER_REAL, &time, NULL) < 0 ){
-		fprintf(stderr, "set timer fail.\n") ;
-		return false ;
-	}
-	else
-		return true ;
-}
-
 class OTP{
 
 	board B;
 	history H[128],*Hp;
-//	HashInfo *HashTable ;
-//	unsigned long long int HashPos[2][64] ;
-//	unsigned long long int HashColor[2] ;
 
 	//initialize in do_init
 	void do_init(){
@@ -185,7 +195,7 @@ class OTP{
 		bool my_tile = B.get_my_tile() ;
 		int depth = 64 - B.get_count() ;
 
-		if( B.get_count() < OpenBookDepth + 4 ){
+		if( B.get_count() <= OpenBookDepth ){
 			std::pair<int,int> pos = OpenBook(B.get_black(), B.get_white()) ;
 			if( B.is_valid_move(pos.first, pos.second) )
 				return pos ;
@@ -196,7 +206,7 @@ class OTP{
 			SetClock(preSimulateTime) ;
 			
 			node *root = new node(B) ;
-			while( !TimesUp ){
+			while( !TimesUp() ){
 				grade g = root_simulate(root, my_tile, my_tile) ;
 				root->simulateCount += g.simulateCount ;
 			}
@@ -210,7 +220,7 @@ class OTP{
 			}
 
 			std::pair<int,int> MCBestMove = maxN->pos ;
-			fprintf(stderr,"totalsim = %lld\n", totalsim) ;
+			fprintf(stderr,"Totally %lld simulations\n", totalsim) ;
 			totalsim = 0 ;
 			destroyTree(root) ;
 
@@ -219,7 +229,7 @@ class OTP{
 			
 			fprintf(stderr, "Search at depth %d: Start searching...\n", depth) ;
 			std::pair<int,int>SBestMove = SearchBestMove(B) ;
-			if( TimesUp ){
+			if( TimesUp() ){
 				fprintf(stderr, "Search: Time Limit Exceed\n") ;
 				SetClock(0) ;
 				return MCBestMove ;
@@ -230,29 +240,29 @@ class OTP{
 			}
 		}
 		else {
-	//		return do_ranplay() ;
+			return do_ranplay() ;
 
 			// Monte-Carlo
 			SetClock(SimulateTime) ;
 
 			node *root = new node(B) ;
-			while( !TimesUp ){
+			while( !TimesUp() ){
 				grade g = root_simulate(root, my_tile, my_tile) ;
 				root->simulateCount += g.simulateCount ;
 			}
 
 			node *maxN = root->child ;
 			node *tmpN = root->child->next ;
-			fprintf(stderr, "(%d,%d): %f with %lld simulates\n", maxN->pos.first, maxN->pos.second, maxN->winrate, maxN->simulateCount);
+			fprintf(stderr, "(%d,%d): %f with %lld simulations\n", maxN->pos.first, maxN->pos.second, maxN->winrate, maxN->simulateCount);
 			for( int i = 1 ; i < root->childCount ; ++i ){
-				fprintf(stderr, "(%d,%d): %f with %lld simulates\n", tmpN->pos.first, tmpN->pos.second, tmpN->winrate, tmpN->simulateCount);
+				fprintf(stderr, "(%d,%d): %f with %lld simulations\n", tmpN->pos.first, tmpN->pos.second, tmpN->winrate, tmpN->simulateCount);
 				if( tmpN->winrate > maxN->winrate )
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
 			}
 
 			std::pair<int,int> BestMove = maxN->pos ;
-			fprintf(stderr,"totalsim = %lld\n", totalsim) ;
+			fprintf(stderr,"Totally %lld simulations\n", totalsim) ;
 			totalsim = 0 ;
 			destroyTree(root) ;
 			SetClock(0) ;
@@ -493,7 +503,7 @@ class OTP{
 	}
 
 	int Search(board B, const int alpha, const int beta){
-		if( B.is_game_over() || TimesUp )
+		if( B.is_game_over() || TimesUp() )
 			return sign(B.get_my_score()) ;
 
 		std::pair<int,int> ML[64], *MLED(ML) ;
@@ -538,15 +548,11 @@ class OTP{
 	//	HashPos[2][64] ;
 	//	HashColor[2] ;
 		
-		struct sigaction act ;
-		act.sa_handler = sig_handler ;
-		sigemptyset(&act.sa_mask) ;
-		sigaddset(&act.sa_mask, SIGALRM) ;
-		act.sa_flags = 0 ;
-		act.sa_flags |= SA_INTERRUPT ;
-
-		if( sigaction( SIGALRM, &act, NULL ) < 0 )
-			fprintf(stderr, "sigaction fail.\n") ;
+#ifdef _WINDOWS
+		srand(Tick = GetTickCount()) ;
+#else
+		srand(Tick = time(NULL)) ;
+#endif
 	}
 
 	bool do_op(const char*cmd,char*out,FILE*myerr){
@@ -584,6 +590,7 @@ class OTP{
 				return true;
 			}
 			case my_hash("genmove"):{
+				clock_t start_time = clock() ;
 				std::pair<int,int> xy = do_genmove();
 				int x = xy.first ;
 				int y = xy.second;
@@ -591,6 +598,8 @@ class OTP{
 				B.show_board(myerr);
 				sprintf(out,"genmove %d %d",x,y);
 				fprintf(myerr,"\n") ;
+				TotalTimeLimit -= (clock() - start_time) ;
+				fprintf(stderr, "Time left: %ld seconds\n", TotalTimeLimit/CLOCKS_PER_SEC) ;
 				return true;
 			}
 			case my_hash("undo"):
