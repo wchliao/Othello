@@ -19,22 +19,21 @@
 #include<utility>
 
 // parameters
-constexpr double UCB_c = 0.1 ;
+constexpr double UCB_c = 1.0 ;
 constexpr int simulateN = 10000 ;
 
 constexpr int OpenBookDepth = 14 ;
-constexpr int SearchDepth = 20 ;
+constexpr int SearchDepth = 18 ;
 
-constexpr int SimulateTime = 30 ;
-constexpr int preSimulateTime = 1 ;
-constexpr int SearchTime = SimulateTime - preSimulateTime ;
-constexpr clock_t PreservedTime = 60 ;
+constexpr clock_t SimulateTime = 9 ;
+constexpr clock_t postSimulateTime = 1 ;
+constexpr clock_t SearchTime = SimulateTime - postSimulateTime ;
+constexpr clock_t TotalTimeLimit = 290 * CLOCKS_PER_SEC ;
 
 //constexpr int HashTableSize = 1<<26 ;
 
 // global counters
 long long int totalsim = 0 ;
-clock_t TotalTimeLimit = 1800 * CLOCKS_PER_SEC ;
 
 // globla variables
 #ifdef _WINDOWS
@@ -87,6 +86,10 @@ constexpr double var(double winrate){
 
 constexpr double stddev(double winrate){
 	return sqrt(winrate * (1-winrate)) ;
+}
+
+constexpr int max(int a, int b){
+	return (a >= b)? a : b ;
 }
 
 struct HashInfo {
@@ -169,11 +172,13 @@ class OTP{
 
 	board B;
 	history H[128],*Hp;
+	clock_t RemainTime ;
 
 	//initialize in do_init
 	void do_init(){
 		B = board() ;
 		Hp = H ;
+		RemainTime = TotalTimeLimit ;
 	}
 
 	// Randomly return a valid move
@@ -202,8 +207,20 @@ class OTP{
 		}
 
 		if( depth <= SearchDepth ){
+			// Search
+			SetClock((RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2)) ;
+			fprintf(stderr, "Search time: %ld secs\n", (RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2)) ;
+			
+			fprintf(stderr, "Search at depth %d: Start searching...\n", depth) ;
+			std::pair<int,int>BestMove = SearchBestMove(B) ;
+			if( !TimesUp() )
+				return BestMove ;
+			else 
+				fprintf(stderr, "Search: Time Limit Exceed\n") ;
+			
 			// Monte-Carlo
-			SetClock(preSimulateTime) ;
+			SetClock(postSimulateTime) ;
+			fprintf(stderr, "Pre-simlation time: %ld secs\n", postSimulateTime) ;
 			
 			node *root = new node(B) ;
 			while( !TimesUp() ){
@@ -219,31 +236,19 @@ class OTP{
 				tmpN = tmpN->next ;
 			}
 
-			std::pair<int,int> MCBestMove = maxN->pos ;
+			BestMove = maxN->pos ;
 			fprintf(stderr,"Totally %lld simulations\n", totalsim) ;
 			totalsim = 0 ;
 			destroyTree(root) ;
 
-			// Search
-			SetClock(SearchTime) ;
-			
-			fprintf(stderr, "Search at depth %d: Start searching...\n", depth) ;
-			std::pair<int,int>SBestMove = SearchBestMove(B) ;
-			if( TimesUp() ){
-				fprintf(stderr, "Search: Time Limit Exceed\n") ;
-				SetClock(0) ;
-				return MCBestMove ;
-			}
-			else {
-				SetClock(0) ;
-				return SBestMove ;
-			}
+			return BestMove ;
 		}
 		else {
-			return do_ranplay() ;
+//			return do_ranplay() ;
 
 			// Monte-Carlo
-			SetClock(SimulateTime) ;
+			SetClock((RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2)) ;
+			fprintf(stderr, "Simulation time: %ld secs\n", (RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2)) ;
 
 			node *root = new node(B) ;
 			while( !TimesUp() ){
@@ -598,8 +603,8 @@ class OTP{
 				B.show_board(myerr);
 				sprintf(out,"genmove %d %d",x,y);
 				fprintf(myerr,"\n") ;
-				TotalTimeLimit -= (clock() - start_time) ;
-				fprintf(stderr, "Time left: %ld seconds\n", TotalTimeLimit/CLOCKS_PER_SEC) ;
+				RemainTime -= (clock() - start_time) ;
+				fprintf(stderr, "Time left: %ld secs\n", RemainTime/CLOCKS_PER_SEC) ;
 				return true;
 			}
 			case my_hash("undo"):
