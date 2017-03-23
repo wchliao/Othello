@@ -19,7 +19,7 @@
 #include<utility>
 
 // parameters
-constexpr double UCB_c = 1.0 ;
+constexpr double UCB_c = 0.5 ;
 constexpr int simulateN = 10000 ;
 
 constexpr int OpenBookDepth = 14 ;
