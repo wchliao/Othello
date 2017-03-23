@@ -74,7 +74,7 @@ std::pair<int,int> book7(unsigned long long black, unsigned long long white){
 		return std::pair<int,int>(4,2) ;
 	else if( black == 0x380C000000 && white == 0x10100000 )
 		return std::pair<int,int>(3,1) ;
-	else if( black == 0x30180C000000 && white == 0x10100000 )
+	else if( black == 0x20180C000000 && white == 0x10100000 )
 		return std::pair<int,int>(5,4) ;
 	else
 		return std::pair<int,int>(8,0) ;
@@ -83,7 +83,7 @@ std::pair<int,int> book7(unsigned long long black, unsigned long long white){
 std::pair<int,int> book8(unsigned long long black, unsigned long long white){
 	if( black == 0x18080000 && white == 0x1C04040000 )
 		return std::pair<int,int>(5,3) ;
-	else if( black == 0x30080C000000 && white == 0x101010100000 )
+	else if( black == 0x20080C000000 && white == 0x101010100000 )
 		return std::pair<int,int>(4,5) ;
 	else if( black == 0x201800000000 && white == 0x1E100000 )
 		return std::pair<int,int>(2,5) ;
