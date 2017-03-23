@@ -17,3 +17,10 @@ A Othello program for 2017 Computer Othello Championship.
 * Organization: National Taiwan University
 * Nation: Taiwan
 
+### Search Results Record
+
+| Depth | Maximum Time |
+|-------|--------------|
+|  14   |      10      |
+|  18   |      25      |
+
