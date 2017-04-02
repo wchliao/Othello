@@ -23,19 +23,15 @@ constexpr double UCB_c = 0.5 ;
 constexpr int simulateN = 10000 ;
 
 constexpr int OpenBookDepth = 14 ;
-constexpr int SearchDepth = 18 ;
+constexpr int SearchDepth = 20 ;
 
-constexpr clock_t SimulateTime = 9 ;
-constexpr clock_t postSimulateTime = 1 ;
-constexpr clock_t SearchTime = SimulateTime - postSimulateTime ;
-constexpr clock_t TotalTimeLimit = 290 * CLOCKS_PER_SEC ;
-
-//constexpr int HashTableSize = 1<<26 ;
+constexpr clock_t SearchTime = 10 ;
+constexpr clock_t TotalTimeLimit = 1800 * CLOCKS_PER_SEC ;
 
 // global counters
 long long int totalsim = 0 ;
 
-// globla variables
+// global variables
 #ifdef _WINDOWS
 DWORD Tick ;
 int TimeOut ;
@@ -43,11 +39,6 @@ int TimeOut ;
 clock_t Tick ;
 clock_t TimeOut ;
 #endif
-/*
-HashInfo *HashTable ;
-unsigned long long int HashPos[2][64] ;
-unsigned long long int HashColor[2] ;
-*/
 
 inline bool TimesUp(){
 #ifdef _WINDOWS
@@ -104,7 +95,6 @@ struct history {
 	unsigned long long black ;
 	unsigned long long white ;
 	int pass ;
-//	unsigned long long hash ;
 } ;
 
 struct grade {
@@ -208,8 +198,10 @@ class OTP{
 
 		if( depth <= SearchDepth ){
 			// Search
-			SetClock((RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2)) ;
-			fprintf(stderr, "Search time: %ld secs\n", (RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2)) ;
+			clock_t SimulateTime = max((RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2) - SearchTime, 1) ;
+			
+			SetClock(SearchTime) ;
+			fprintf(stderr, "Search time: %ld secs\n", SearchTime) ;
 			
 			fprintf(stderr, "Search at depth %d: Start searching...\n", depth) ;
 			std::pair<int,int>BestMove = SearchBestMove(B) ;
@@ -219,8 +211,8 @@ class OTP{
 				fprintf(stderr, "Search: Time Limit Exceed\n") ;
 			
 			// Monte-Carlo
-			SetClock(postSimulateTime) ;
-			fprintf(stderr, "Pre-simlation time: %ld secs\n", postSimulateTime) ;
+			SetClock(SimulateTime) ;
+			fprintf(stderr, "Post-simlation time: %ld secs\n", SimulateTime) ;
 			
 			node *root = new node(B) ;
 			while( !TimesUp() ){
@@ -230,7 +222,9 @@ class OTP{
 
 			node *maxN = root->child ;
 			node *tmpN = root->child->next ;
+			fprintf(stderr, "(%d,%d): %f with %lld simulations\n", maxN->pos.first, maxN->pos.second, maxN->winrate, maxN->simulateCount);
 			for( int i = 1 ; i < root->childCount ; ++i ){
+				fprintf(stderr, "(%d,%d): %f with %lld simulations\n", tmpN->pos.first, tmpN->pos.second, tmpN->winrate, tmpN->simulateCount);
 				if( tmpN->winrate > maxN->winrate )
 					maxN = tmpN ;
 				tmpN = tmpN->next ;
@@ -247,8 +241,9 @@ class OTP{
 //			return do_ranplay() ;
 
 			// Monte-Carlo
-			SetClock((RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2)) ;
-			fprintf(stderr, "Simulation time: %ld secs\n", (RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2)) ;
+			clock_t SimulateTime = (RemainTime/CLOCKS_PER_SEC)/max(1, (depth+1)/2) ;
+			SetClock(SimulateTime) ;
+			fprintf(stderr, "Simulation time: %ld secs\n", SimulateTime) ;
 
 			node *root = new node(B) ;
 			while( !TimesUp() ){
@@ -270,7 +265,6 @@ class OTP{
 			fprintf(stderr,"Totally %lld simulations\n", totalsim) ;
 			totalsim = 0 ;
 			destroyTree(root) ;
-			SetClock(0) ;
 			return BestMove ;
 		}
 	}
@@ -549,10 +543,6 @@ class OTP{
 	OTP():B(),Hp(H){
 		do_init();
 	
-	//	HashTable = new HashInfo[HashTableSize] ;
-	//	HashPos[2][64] ;
-	//	HashColor[2] ;
-		
 #ifdef _WINDOWS
 		srand(Tick = GetTickCount()) ;
 #else
@@ -618,6 +608,7 @@ class OTP{
 					fprintf(myerr, "No valid move. Pass.\n") ;
 					sprintf(out,"validmove");
 					return true ;
+			SetClock(0) ;
 				}
 				do {
 					fprintf(myerr, "(%d,%d) ", pML->first, pML->second) ;
