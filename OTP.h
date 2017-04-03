@@ -19,14 +19,14 @@
 #include<utility>
 
 // parameters
-constexpr double UCB_c = 0.5 ;
-constexpr int simulateN = 10000 ;
+constexpr double UCB_c = 0.1 ;
+constexpr int simulateN = 1000 ;
 
 constexpr int OpenBookDepth = 14 ;
-constexpr int SearchDepth = 20 ;
+constexpr int SearchDepth = 14 ;
 
-constexpr clock_t SearchTime = 10 ;
-constexpr clock_t TotalTimeLimit = 1800 * CLOCKS_PER_SEC ;
+constexpr clock_t SearchTime = 8 ;
+constexpr clock_t TotalTimeLimit = 300 * CLOCKS_PER_SEC ;
 
 // global counters
 long long int totalsim = 0 ;
