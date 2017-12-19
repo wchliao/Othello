@@ -6,7 +6,7 @@
 
 An Othello program implemented in C++.
 
-The core search method is Monte-Carlo simulation.
+The core search method is Monte-Carlo tree search.
 
 Plus, open books, bitboard, and fast magic number mapping are used to optimize the search speed.
 
