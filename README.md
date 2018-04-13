@@ -1,6 +1,6 @@
 # Othello
 
-<img src="https://github.com/benliaowc/Othello/blob/master/pic/cover.png" title="Othello" width="300px" height="300px">
+<img src="/pic/cover.png" title="Othello" width="300px" height="300px">
 
 ## Introduction
 
