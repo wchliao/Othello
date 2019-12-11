@@ -608,7 +608,6 @@ class OTP{
 					fprintf(myerr, "No valid move. Pass.\n") ;
 					sprintf(out,"validmove");
 					return true ;
-			SetClock(0) ;
 				}
 				do {
 					fprintf(myerr, "(%d,%d) ", pML->first, pML->second) ;
